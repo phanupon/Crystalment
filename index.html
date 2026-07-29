@@ -317,6 +317,9 @@
     <h2>รหัสห้องของเธอ</h2>
     <div class="roomcode" id="roomCode" title="แตะเพื่อคัดลอก">- - - - -</div>
     <div class="netmsg" id="hostMsg"><span class="spinner"></span>กำลังเปิดห้อง...</div>
+    <div id="hostRetryRow" class="field hidden">
+      <button class="btn mini" id="hostRetry" style="flex:1">สร้างห้องใหม่ ↻</button>
+    </div>
     <p class="note">ส่งรหัสนี้ให้อีกฝ่าย เมื่อเขากดเข้าร่วม เกมจะเริ่มอัตโนมัติ</p>
   </div>
 
@@ -328,6 +331,9 @@
       <button class="btn mini" id="joinConnect">เชื่อมต่อ</button>
     </div>
     <div class="netmsg" id="joinMsg"></div>
+    <div id="joinRetryRow" class="field hidden">
+      <button class="btn mini" id="joinRetry" style="flex:1">ลองเชื่อมต่อใหม่ ↻</button>
+    </div>
   </div>
 
   <p class="note" id="onlineNote">เล่นได้จริงเมื่อเปิดไฟล์นี้ผ่าน URL จริง (เช่นบน server ของเธอ) ในสองเครื่อง ·
@@ -764,7 +770,7 @@ function showTable(){
   document.getElementById('table').classList.add('on');
 }
 function backToMenu(){
-  if(peer){ try{peer.destroy();}catch(e){} peer=null; conn=null; }
+  if(typeof destroyPeer==='function') destroyPeer(); else { if(peer){try{peer.destroy();}catch(e){}} peer=null; conn=null; }
   G.online=false; G.myKey=null;
   document.getElementById('table').classList.remove('on');
   document.getElementById('victory').classList.remove('show');
@@ -772,6 +778,8 @@ function backToMenu(){
   scOnline.classList.add('hidden');
   document.getElementById('hostPanel').classList.add('hidden');
   document.getElementById('joinPanel').classList.add('hidden');
+  const hrr=document.getElementById('hostRetryRow'), jrr=document.getElementById('joinRetryRow');
+  if(hrr) hrr.classList.add('hidden'); if(jrr) jrr.classList.add('hidden');
   document.getElementById('onlineChoices').classList.remove('hidden');
   scMode.classList.remove('hidden');
 }
@@ -790,30 +798,81 @@ document.getElementById('pickOnline').onclick=()=>{
 document.getElementById('onlineBack').onclick=backToMenu;
 document.getElementById('againBtn').onclick=()=>{ if(G.online && conn && conn.open){ /* host restarts */ } backToMenu(); };
 
+/* ---------------- WebRTC network config ----------------
+   จุดที่ทำให้ "เชื่อมต่อช้า/ไม่ได้" บ่อยที่สุดคือ NAT ที่เข้มงวด
+   (เน็ตมือถือ / wifi องค์กร) ที่ STUN อย่างเดียวเจาะไม่ผ่าน — ต้องมี
+   TURN เป็นทางสำรอง ใช้ relay สาธารณะฟรีของ Open Relay Project
+   เสริมกับ STUN หลายเจ้าเพื่อเพิ่มโอกาสสำเร็จและลดเวลาหา route ------ */
+const ICE_SERVERS = [
+  {urls:'stun:stun.l.google.com:19302'},
+  {urls:'stun:stun1.l.google.com:19302'},
+  {urls:'stun:global.stun.twilio.com:3478'},
+  {urls:'turn:openrelay.metered.ca:80', username:'openrelayproject', credential:'openrelayproject'},
+  {urls:'turn:openrelay.metered.ca:443', username:'openrelayproject', credential:'openrelayproject'},
+  {urls:'turn:openrelay.metered.ca:443?transport=tcp', username:'openrelayproject', credential:'openrelayproject'},
+];
+const PEER_OPTS = {config:{iceServers:ICE_SERVERS}, debug:1};
+const BROKER_TIMEOUT_MS = 10000;   // ต่อ broker (จับคู่รหัสห้อง) ไม่ควรเกิน 10 วิ
+const P2P_TIMEOUT_MS    = 18000;   // เจรจา P2P จริง (ICE) ไม่ควรเกิน 18 วิ
+
+function clearTimers(){ clearTimeout(window._pjTimer1); clearTimeout(window._pjTimer2); }
+function destroyPeer(){ clearTimers(); if(conn){try{conn.close();}catch(e){}} if(peer){try{peer.destroy();}catch(e){}} peer=null; conn=null; }
+
 /* ---------------- PeerJS: HOST ---------------- */
 function makeCode(){ const ch='ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let s='';
   for(let i=0;i<6;i++) s+=ch[Math.floor(Math.random()*ch.length)]; return s; }
-document.getElementById('pickHost').onclick=()=>{
-  document.getElementById('onlineChoices').classList.add('hidden');
-  document.getElementById('hostPanel').classList.remove('hidden');
+function startHost(){
+  document.getElementById('hostRetryRow').classList.add('hidden');
+  destroyPeer();
   const code=makeCode();
   document.getElementById('roomCode').textContent=code.split('').join(' ');
   const hostMsg=document.getElementById('hostMsg');
+  hostMsg.className='netmsg'; hostMsg.innerHTML='<span class="spinner"></span>กำลังเปิดห้อง...';
   try{
-    peer=new Peer('crystalment-'+code);
-    peer.on('open',()=>{ hostMsg.innerHTML='<span class="spinner"></span>รอผู้เล่นอีกฝ่ายเข้าร่วม...'; });
+    peer=new Peer('crystalment-'+code, PEER_OPTS);
+    window._pjTimer1=setTimeout(()=>{
+      if(!peer||!peer.open){ hostMsg.className='netmsg err';
+        hostMsg.textContent='เปิดห้องช้าผิดปกติ — เครือข่ายอาจปิดกั้นการเชื่อมต่อ ลองใหม่หรือเปลี่ยนเครือข่าย';
+        document.getElementById('hostRetryRow').classList.remove('hidden'); }
+    }, BROKER_TIMEOUT_MS);
+    peer.on('open',()=>{
+      clearTimeout(window._pjTimer1);
+      hostMsg.innerHTML='<span class="spinner"></span>รอผู้เล่นอีกฝ่ายเข้าร่วม...';
+    });
     peer.on('connection',c=>{
+      clearTimers();
       conn=c; setupConn();
+      window._pjTimer2=setTimeout(()=>{
+        if(!G.online){ hostMsg.className='netmsg err';
+          hostMsg.textContent='เชื่อมต่อ P2P ล่าช้ามาก (เครือข่ายอาจปิดกั้น) ลองให้อีกฝ่ายเข้าร่วมใหม่ หรือสลับไปใช้ Wi-Fi วงเดียวกัน';
+          document.getElementById('hostRetryRow').classList.remove('hidden'); }
+      }, P2P_TIMEOUT_MS);
       c.on('open',()=>{
+        clearTimers();
         G.online=true; G.myKey='a'; showTable(); newGame();
         conn.send({type:'init', state:serializeState()});
         netStatus('🟢 ออนไลน์ · เธอคือ PLAYER A');
       });
+      c.on('error',()=>{ clearTimers(); hostMsg.className='netmsg err';
+        hostMsg.textContent='เชื่อมต่อ P2P ไม่สำเร็จ — ลองสร้างห้องใหม่';
+        document.getElementById('hostRetryRow').classList.remove('hidden'); });
     });
-    peer.on('error',e=>{ hostMsg.className='netmsg err';
-      hostMsg.textContent = e.type==='unavailable-id' ? 'รหัสซ้ำ ลองสร้างใหม่' : 'เชื่อมต่อไม่สำเร็จ: '+e.type; });
-  }catch(e){ hostMsg.className='netmsg err'; hostMsg.textContent='เปิดห้องไม่สำเร็จ'; }
+    peer.on('error',e=>{ clearTimers(); hostMsg.className='netmsg err';
+      hostMsg.textContent = e.type==='unavailable-id' ? 'รหัสซ้ำ กำลังสร้างรหัสใหม่...' :
+        e.type==='network' ? 'เครือข่ายมีปัญหา ตรวจการเชื่อมต่ออินเทอร์เน็ต' :
+        'เชื่อมต่อไม่สำเร็จ: '+e.type;
+      document.getElementById('hostRetryRow').classList.remove('hidden');
+      if(e.type==='unavailable-id') setTimeout(startHost,600);
+    });
+  }catch(e){ hostMsg.className='netmsg err'; hostMsg.textContent='เปิดห้องไม่สำเร็จ: เบราว์เซอร์นี้อาจไม่รองรับ WebRTC';
+    document.getElementById('hostRetryRow').classList.remove('hidden'); }
+}
+document.getElementById('pickHost').onclick=()=>{
+  document.getElementById('onlineChoices').classList.add('hidden');
+  document.getElementById('hostPanel').classList.remove('hidden');
+  startHost();
 };
+document.getElementById('hostRetry').onclick=startHost;
 document.getElementById('roomCode').onclick=function(){
   const code=this.textContent.replace(/\s/g,'');
   if(navigator.clipboard){ navigator.clipboard.writeText(code).then(()=>{
@@ -828,29 +887,52 @@ document.getElementById('pickJoin').onclick=()=>{
   document.getElementById('joinCode').focus();
 };
 document.getElementById('joinConnect').onclick=joinRoom;
+document.getElementById('joinRetry').onclick=joinRoom;
 document.getElementById('joinCode').addEventListener('keydown',e=>{ if(e.key==='Enter') joinRoom(); });
 function joinRoom(){
   const code=document.getElementById('joinCode').value.trim().toUpperCase();
   const jm=document.getElementById('joinMsg');
+  document.getElementById('joinRetryRow').classList.add('hidden');
   if(code.length<4){ jm.className='netmsg err'; jm.textContent='ใส่รหัสให้ครบ'; return; }
+  destroyPeer();
   jm.className='netmsg'; jm.innerHTML='<span class="spinner"></span>กำลังเชื่อมต่อ...';
   try{
-    peer=new Peer();
+    peer=new Peer(PEER_OPTS);
+    window._pjTimer1=setTimeout(()=>{
+      if(!peer||!peer.open){ jm.className='netmsg err';
+        jm.textContent='เชื่อมต่อ broker ล่าช้าผิดปกติ — ตรวจอินเทอร์เน็ต แล้วลองใหม่';
+        document.getElementById('joinRetryRow').classList.remove('hidden'); }
+    }, BROKER_TIMEOUT_MS);
     peer.on('open',()=>{
+      clearTimeout(window._pjTimer1);
+      jm.innerHTML='<span class="spinner"></span>พบ broker แล้ว กำลังเชื่อมต่อไปยังห้อง...';
       conn=peer.connect('crystalment-'+code,{reliable:true});
       setupConn();
-      conn.on('open',()=>{ jm.className='netmsg ok'; jm.textContent='เชื่อมต่อสำเร็จ! รอเริ่มเกม...'; });
+      window._pjTimer2=setTimeout(()=>{
+        if(!G.online){ jm.className='netmsg err';
+          jm.textContent='เชื่อมต่อ P2P ล่าช้ามาก — เครือข่ายอาจปิดกั้น ลองสลับเป็น Wi-Fi เดียวกันกับ Host แล้วลองใหม่';
+          document.getElementById('joinRetryRow').classList.remove('hidden'); }
+      }, P2P_TIMEOUT_MS);
+      conn.on('open',()=>{ clearTimers(); jm.className='netmsg ok'; jm.textContent='เชื่อมต่อสำเร็จ! รอเริ่มเกม...'; });
+      conn.on('error',()=>{ clearTimers(); jm.className='netmsg err'; jm.textContent='เชื่อมต่อ P2P ไม่สำเร็จ — ลองใหม่';
+        document.getElementById('joinRetryRow').classList.remove('hidden'); });
     });
-    peer.on('error',e=>{ jm.className='netmsg err';
-      jm.textContent = (e.type==='peer-unavailable') ? 'ไม่พบห้องนี้ ตรวจรหัสอีกครั้ง' : 'เชื่อมต่อไม่สำเร็จ: '+e.type; });
-  }catch(e){ jm.className='netmsg err'; jm.textContent='เชื่อมต่อไม่สำเร็จ'; }
+    peer.on('error',e=>{ clearTimers(); jm.className='netmsg err';
+      jm.textContent = (e.type==='peer-unavailable') ? 'ไม่พบห้องนี้ — ตรวจรหัสอีกครั้ง หรือ Host ยังไม่ได้เปิดห้อง' :
+        e.type==='network' ? 'เครือข่ายมีปัญหา ตรวจการเชื่อมต่ออินเทอร์เน็ต' :
+        'เชื่อมต่อไม่สำเร็จ: '+e.type;
+      document.getElementById('joinRetryRow').classList.remove('hidden');
+    });
+  }catch(e){ jm.className='netmsg err'; jm.textContent='เชื่อมต่อไม่สำเร็จ: เบราว์เซอร์นี้อาจไม่รองรับ WebRTC';
+    document.getElementById('joinRetryRow').classList.remove('hidden'); }
 }
 
 /* ---------------- connection message handling ---------------- */
 function setupConn(){
   conn.on('data', onMsg);
-  conn.on('close', ()=>{ if(!G.over){ netStatus('🔴 การเชื่อมต่อหลุด','err');
+  conn.on('close', ()=>{ if(!G.over && G.online){ netStatus('🔴 การเชื่อมต่อหลุด','err');
     toast('⚠️','การเชื่อมต่อหลุด','กลับสู่เมนู'); setTimeout(backToMenu,1600); } });
+  conn.on('error', ()=>{ if(!G.over && G.online){ netStatus('🔴 การเชื่อมต่อมีปัญหา','err'); } });
 }
 function onMsg(m){
   if(!m||!m.type) return;
