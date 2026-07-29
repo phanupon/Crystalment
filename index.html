@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Kanit:wght@300;400;600;700&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js"></script>
 <style>
   :root{
     --void:#050810; --void2:#0a1120; --panel:#0b1424; --panel2:#101d33;
@@ -21,57 +22,83 @@
   html,body{height:100%;overflow:hidden}
   body{
     font-family:var(--body); color:var(--txt);
-    background:
-      radial-gradient(1200px 600px at 50% 50%, #0d1830 0%, var(--void) 70%),
-      var(--void);
+    background:radial-gradient(1200px 600px at 50% 50%, #0d1830 0%, var(--void) 70%),var(--void);
     user-select:none; -webkit-user-select:none; touch-action:manipulation;
   }
-  /* ambient crystal grid */
   body::before{
     content:""; position:fixed; inset:0; pointer-events:none; opacity:.35;
-    background-image:
-      linear-gradient(var(--line) 1px, transparent 1px),
+    background-image:linear-gradient(var(--line) 1px, transparent 1px),
       linear-gradient(90deg, var(--line) 1px, transparent 1px);
     background-size:44px 44px;
     mask-image:radial-gradient(1000px 600px at 50% 50%, #000 20%, transparent 75%);
   }
 
-  /* ---------- START SCREEN ---------- */
-  #start{
+  /* ---------- SCREENS ---------- */
+  .screen{
     position:fixed; inset:0; z-index:60; display:flex; flex-direction:column;
-    align-items:center; justify-content:center; text-align:center; gap:22px;
+    align-items:center; justify-content:center; text-align:center; gap:20px; padding:24px;
     background:radial-gradient(900px 500px at 50% 40%, #0e1c38 0%, var(--void) 75%);
   }
-  #start .logo-mark{
-    width:96px;height:96px;filter:drop-shadow(0 0 26px var(--crystal));
-    animation:float 4s ease-in-out infinite;
-  }
+  .screen.hidden{display:none}
+  .logo-mark{width:88px;height:88px;filter:drop-shadow(0 0 26px var(--crystal));animation:float 4s ease-in-out infinite}
   @keyframes float{50%{transform:translateY(-10px)}}
-  #start h1{
-    font-family:var(--disp); font-weight:900; letter-spacing:.22em; font-size:clamp(34px,7vw,74px);
+  h1.title{
+    font-family:var(--disp); font-weight:900; letter-spacing:.22em; font-size:clamp(32px,7vw,70px);
     background:linear-gradient(180deg,#eafaff,var(--crystal) 60%,var(--crystal-deep));
     -webkit-background-clip:text; background-clip:text; color:transparent;
     text-shadow:0 0 44px rgba(56,225,255,.25);
   }
-  #start .sub{color:var(--dim); letter-spacing:.42em; font-family:var(--disp);
-    font-size:clamp(9px,1.6vw,13px); text-transform:uppercase; margin-top:-8px}
-  #start .desc{max-width:560px; color:var(--txt); opacity:.85; line-height:1.7; font-weight:300}
-  #start .goal{display:flex;gap:26px;flex-wrap:wrap;justify-content:center;margin:6px 0}
-  #start .goal div{background:var(--panel);border:1px solid var(--line);border-radius:14px;
-    padding:14px 20px;min-width:150px}
-  #start .goal b{display:block;font-family:var(--disp);color:var(--crystal);font-size:22px}
-  #start .goal span{color:var(--dim);font-size:12px}
+  .sub{color:var(--dim); letter-spacing:.42em; font-family:var(--disp);
+    font-size:clamp(9px,1.6vw,13px); text-transform:uppercase; margin-top:-6px}
+  .desc{max-width:540px; opacity:.85; line-height:1.7; font-weight:300}
   .btn{
-    font-family:var(--disp); letter-spacing:.14em; font-weight:700; cursor:pointer;
+    font-family:var(--disp); letter-spacing:.12em; font-weight:700; cursor:pointer;
     background:linear-gradient(180deg,#123a52,#0b2236); color:#eafaff;
-    border:1px solid var(--crystal-deep); border-radius:12px; padding:16px 40px; font-size:17px;
+    border:1px solid var(--crystal-deep); border-radius:12px; padding:15px 34px; font-size:16px;
     box-shadow:0 0 0 1px rgba(56,225,255,.12), 0 10px 30px rgba(0,0,0,.5),
       inset 0 1px 0 rgba(255,255,255,.08);
     transition:transform .12s ease, box-shadow .2s ease;
   }
   .btn:hover{transform:translateY(-2px);box-shadow:0 0 26px rgba(56,225,255,.4),0 12px 34px rgba(0,0,0,.55)}
   .btn:active{transform:translateY(0)}
-  .btn.mini{padding:9px 18px;font-size:12px;letter-spacing:.1em}
+  .btn.mini{padding:9px 16px;font-size:12px;letter-spacing:.08em}
+  .btn.ghost{background:transparent;border-color:var(--line);color:var(--dim)}
+  .btn.ghost:hover{color:var(--txt);box-shadow:none;border-color:var(--crystal-deep)}
+  .choices{display:flex;gap:16px;flex-wrap:wrap;justify-content:center}
+  .choice{
+    background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:22px 26px;
+    width:230px;cursor:pointer;transition:.15s;text-align:left;display:flex;flex-direction:column;gap:6px;
+  }
+  .choice:hover{border-color:var(--crystal);transform:translateY(-3px);box-shadow:0 10px 30px rgba(0,0,0,.5)}
+  .choice .ic{font-size:30px}
+  .choice h3{font-family:var(--disp);letter-spacing:.1em;font-size:16px;color:#eafaff}
+  .choice p{font-size:12px;color:var(--dim);font-weight:300;line-height:1.5}
+
+  /* online panel */
+  .card-panel{background:var(--panel);border:1px solid var(--line);border-radius:18px;
+    padding:26px 30px;min-width:320px;max-width:440px;display:flex;flex-direction:column;gap:16px}
+  .card-panel h2{font-family:var(--disp);letter-spacing:.12em;font-size:18px;color:var(--crystal)}
+  .roomcode{
+    font-family:var(--disp);font-weight:900;letter-spacing:.3em;font-size:34px;color:var(--gold);
+    background:var(--void2);border:1px dashed var(--crystal-deep);border-radius:12px;padding:14px;
+    text-shadow:0 0 16px rgba(255,212,94,.4);cursor:pointer;
+  }
+  .field{display:flex;gap:8px}
+  .field input{
+    flex:1;font-family:var(--disp);letter-spacing:.2em;font-size:20px;text-align:center;text-transform:uppercase;
+    background:var(--void2);border:1px solid var(--line);border-radius:10px;color:#eafaff;padding:12px;outline:none;
+  }
+  .field input:focus{border-color:var(--crystal)}
+  .netmsg{font-size:13px;color:var(--dim);min-height:20px;line-height:1.5}
+  .netmsg.ok{color:var(--wind)} .netmsg.err{color:var(--danger)}
+  .spinner{width:20px;height:20px;border:2px solid var(--line);border-top-color:var(--crystal);
+    border-radius:50%;animation:spin .8s linear infinite;display:inline-block;vertical-align:middle;margin-right:6px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .note{font-size:11px;color:var(--dim);opacity:.8;line-height:1.6;max-width:440px}
+  .goal{display:flex;gap:16px;flex-wrap:wrap;justify-content:center}
+  .goal div{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 18px;min-width:130px}
+  .goal b{display:block;font-family:var(--disp);color:var(--crystal);font-size:20px}
+  .goal span{color:var(--dim);font-size:11px}
 
   /* ---------- TABLE ---------- */
   #table{position:fixed;inset:0;display:grid;grid-template-rows:1fr auto 1fr;z-index:1;opacity:0;
@@ -80,14 +107,10 @@
   .side{position:relative;display:flex;flex-direction:column;min-height:0}
   .side.b{transform:rotate(180deg)}
   .side.inactive{filter:grayscale(.45) brightness(.62)}
-  .side .rail{
-    display:flex;align-items:center;gap:12px;padding:6px 12px;
+  .side .rail{display:flex;align-items:center;gap:12px;padding:6px 12px;
     background:linear-gradient(180deg,var(--panel2),var(--panel));
-    border:1px solid var(--line);border-radius:12px;flex:0 0 auto;
-  }
+    border:1px solid var(--line);border-radius:12px;flex:0 0 auto}
   .nameTag{font-family:var(--disp);font-weight:700;letter-spacing:.14em;font-size:13px}
-  .side.a .nameTag{color:#7ce0ff}
-  .side.b .nameTag{color:#ffb27c}
   .status{font-size:11px;color:var(--dim);letter-spacing:.1em}
   .status.ready{color:var(--wind)}
   .crystalCount{display:flex;align-items:center;gap:8px;margin-left:auto}
@@ -97,37 +120,28 @@
   .cbar{width:120px;height:10px;background:var(--void2);border:1px solid var(--line);border-radius:6px;overflow:hidden}
   .cbar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--crystal-deep),var(--gold));
     transition:width .5s cubic-bezier(.2,.8,.2,1);box-shadow:0 0 12px var(--gold)}
-  .deckchip{font-size:11px;color:var(--dim);display:flex;gap:5px;align-items:center}
-  .deckchip b{color:var(--txt);font-family:var(--disp)}
 
-  /* zones */
   .board{flex:1;display:flex;gap:8px;padding:6px 4px;min-height:0}
   .monsters{flex:1;display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
   .sidecol{display:flex;flex-direction:column;gap:8px;width:104px;flex:0 0 auto}
-  .slot{
-    border:1.5px dashed var(--line);border-radius:12px;position:relative;
+  .slot{border:1.5px dashed var(--line);border-radius:12px;position:relative;
     display:flex;align-items:center;justify-content:center;min-height:0;
-    background:linear-gradient(180deg,rgba(16,29,51,.5),rgba(11,20,36,.3));
-  }
+    background:linear-gradient(180deg,rgba(16,29,51,.5),rgba(11,20,36,.3))}
   .slot .slabel{position:absolute;top:6px;left:8px;font-family:var(--disp);font-size:9px;
     letter-spacing:.14em;color:var(--dim);opacity:.7}
   .slot.magic{border-color:#2a4a7a}
-  .slot.deck,.slot.drop{cursor:default}
   .slot.deck .stack, .slot.drop .stack{font-family:var(--disp);color:var(--dim);text-align:center}
   .slot.deck .stack b, .slot.drop .stack b{display:block;color:var(--crystal);font-size:22px}
   .slot.can-summon{border-color:var(--crystal);border-style:solid;
     box-shadow:0 0 18px rgba(56,225,255,.35) inset;cursor:pointer;animation:pulseslot 1.4s infinite}
   @keyframes pulseslot{50%{box-shadow:0 0 26px rgba(56,225,255,.55) inset}}
 
-  /* hand */
-  .hand{flex:0 0 auto;display:flex;justify-content:center;align-items:flex-end;gap:-14px;
+  .hand{flex:0 0 auto;display:flex;justify-content:center;align-items:flex-end;
     padding:4px 4px 2px;min-height:118px;perspective:900px}
   .hand .card{margin:0 -12px;transition:transform .18s ease, margin .18s ease}
-  .side.a .hand .card:hover{transform:translateY(-16px) scale(1.06);margin:0 2px;z-index:5}
-  .side.b .hand .card:hover{transform:translateY(-16px) scale(1.06);margin:0 2px;z-index:5}
-  .hand.locked .card{opacity:.5;pointer-events:none}
+  .hand .card:hover{transform:translateY(-16px) scale(1.06);margin:0 2px;z-index:5}
+  .hand.locked .card{pointer-events:none}
 
-  /* ---------- CARD ---------- */
   .card{
     --el:var(--neutral);
     width:84px;height:114px;border-radius:10px;position:relative;cursor:pointer;flex:0 0 auto;
@@ -146,8 +160,7 @@
     background:color-mix(in srgb, var(--el) 30%, #06101e);border:1px solid var(--el);
     box-shadow:0 0 10px color-mix(in srgb,var(--el) 60%,transparent)}
   .card .art{position:absolute;inset:0;
-    background:
-      radial-gradient(60px 50px at 50% 40%, color-mix(in srgb,var(--el) 55%,transparent), transparent 70%),
+    background:radial-gradient(60px 50px at 50% 40%, color-mix(in srgb,var(--el) 55%,transparent), transparent 70%),
       linear-gradient(180deg, #0c1830 0%, #060d1a 100%);
     display:flex;align-items:center;justify-content:center;font-size:38px;
     filter:drop-shadow(0 0 8px color-mix(in srgb,var(--el) 70%,transparent))}
@@ -157,8 +170,7 @@
     font-weight:600;font-size:8.5px;letter-spacing:.02em;line-height:1.05;padding:0 3px;
     text-shadow:0 1px 3px #000, 0 0 8px color-mix(in srgb,var(--el) 60%,transparent);
     background:linear-gradient(180deg,transparent,rgba(4,10,20,.9))}
-  .card .stats{position:absolute;bottom:2px;left:2px;right:2px;height:20px;z-index:3;
-    display:flex;gap:2px}
+  .card .stats{position:absolute;bottom:2px;left:2px;right:2px;height:20px;z-index:3;display:flex;gap:2px}
   .card .stats span{flex:1;font-family:var(--disp);font-size:8.5px;font-weight:700;
     display:flex;align-items:center;justify-content:center;border-radius:5px;line-height:1}
   .card .atk{background:rgba(255,90,60,.16);color:#ff9d84;border:1px solid rgba(255,90,60,.4)}
@@ -168,10 +180,14 @@
     background:rgba(56,225,255,.1);border:1px solid rgba(56,225,255,.3)}
   .card .kind{position:absolute;bottom:22px;left:0;right:0;z-index:3;text-align:center;
     font-family:var(--disp);font-size:6.5px;letter-spacing:.18em;color:var(--el);opacity:.9}
+  /* face-down back */
+  .card.back{cursor:default;border-color:var(--crystal-deep);
+    background:linear-gradient(180deg,#0c1830,#060d1a)}
+  .card.back .bk{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    color:var(--crystal-deep);font-size:34px;opacity:.6;
+    background:repeating-linear-gradient(45deg,rgba(56,225,255,.05) 0 6px,transparent 6px 12px)}
 
-  /* card on board sizing */
   .slot .card{width:100%;height:100%;cursor:default}
-  .slot .card.attacker{cursor:pointer}
   .slot .card.can-attack{box-shadow:0 0 0 2px var(--crystal),0 0 20px rgba(56,225,255,.5);cursor:pointer}
   .slot .card.target{cursor:crosshair;animation:tgt 1s infinite}
   @keyframes tgt{50%{box-shadow:0 0 0 2px var(--danger),0 0 22px rgba(255,90,106,.6)}}
@@ -182,47 +198,32 @@
     align-items:center;justify-content:center;font-size:30px;color:#bff0ff;
     background:rgba(79,214,255,.18);text-shadow:0 0 12px #4fd6ff}
 
-  /* ---------- CENTER ARENA ---------- */
-  #center{
-    position:relative;display:flex;align-items:center;justify-content:center;gap:18px;
-    background:
-      radial-gradient(420px 120px at 50% 50%, rgba(56,225,255,.12), transparent 70%),
+  #center{position:relative;display:flex;align-items:center;justify-content:center;gap:18px;
+    background:radial-gradient(420px 120px at 50% 50%, rgba(56,225,255,.12), transparent 70%),
       linear-gradient(90deg,var(--void2),#0b1730 50%,var(--void2));
-    border:1px solid var(--line);border-radius:14px;padding:8px 16px;min-height:96px;overflow:hidden;
-  }
+    border:1px solid var(--line);border-radius:14px;padding:8px 16px;min-height:96px;overflow:hidden}
   #center .core{width:56px;height:56px;flex:0 0 auto;filter:drop-shadow(0 0 18px var(--crystal))}
   #center .core svg{animation:spin 22s linear infinite}
-  @keyframes spin{to{transform:rotate(360deg)}}
   #turnBox{text-align:center;min-width:220px}
   #turnBox .who{font-family:var(--disp);font-weight:900;letter-spacing:.14em;font-size:20px}
   #turnBox .phase{font-size:11px;color:var(--dim);letter-spacing:.24em;font-family:var(--disp);text-transform:uppercase}
   #log{flex:1;max-width:360px;height:64px;overflow:hidden;display:flex;flex-direction:column-reverse;
     font-size:11px;color:var(--dim);line-height:1.5;padding:2px 6px;border-left:1px solid var(--line)}
   #log div{opacity:0;animation:logIn .3s forwards}
-  #log div b{color:var(--crystal)}
-  #log div .g{color:var(--gold)}
-  #log div .r{color:var(--danger)}
+  #log div b{color:var(--crystal)} #log div .g{color:var(--gold)} #log div .r{color:var(--danger)}
   @keyframes logIn{to{opacity:1}}
-  #center .controls{display:flex;flex-direction:column;gap:6px;flex:0 0 auto}
-  #center .side.b-controls{transform:rotate(180deg)}
-
-  /* action bar per side (end turn etc) sits in the rail */
   .actions{display:flex;gap:6px;margin-left:8px}
 
-  /* clash animation layer */
   #fxLayer{position:fixed;inset:0;pointer-events:none;z-index:40}
   .spark{position:absolute;width:16px;height:16px;border-radius:50%;
-    background:radial-gradient(circle,#fff,var(--crystal) 60%,transparent);
-    animation:spark .6s ease-out forwards}
+    background:radial-gradient(circle,#fff,var(--crystal) 60%,transparent);animation:spark .6s ease-out forwards}
   @keyframes spark{0%{transform:scale(.3);opacity:1}100%{transform:scale(2.4);opacity:0}}
   .float-dmg{position:absolute;font-family:var(--disp);font-weight:900;font-size:22px;color:var(--danger);
     text-shadow:0 0 12px #000;animation:floatd 1s ease-out forwards;z-index:41}
   @keyframes floatd{0%{transform:translateY(0) scale(.6);opacity:0}
     20%{opacity:1;transform:translateY(-10px) scale(1.2)}100%{transform:translateY(-46px) scale(1);opacity:0}}
-  .cryst-fly{position:absolute;font-size:22px;color:var(--gold);z-index:41;
-    filter:drop-shadow(0 0 10px var(--gold));animation:none}
+  .cryst-fly{position:absolute;font-size:22px;color:var(--gold);z-index:41;filter:drop-shadow(0 0 10px var(--gold))}
 
-  /* toast for magic/command */
   #toast{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(.9);z-index:50;
     background:linear-gradient(180deg,rgba(10,20,38,.96),rgba(6,12,24,.96));
     border:1px solid var(--crystal-deep);border-radius:16px;padding:18px 30px;text-align:center;
@@ -232,14 +233,16 @@
   #toast .t-name{font-family:var(--disp);font-weight:900;letter-spacing:.1em;font-size:22px;color:#eafaff;margin-top:4px}
   #toast .t-fx{color:var(--dim);font-size:13px;margin-top:6px;font-weight:300}
 
-  /* hint bar */
   #hint{position:fixed;bottom:50%;left:50%;transform:translateX(-50%);z-index:30;
-    background:rgba(6,12,24,.8);border:1px solid var(--line);border-radius:20px;
-    padding:5px 16px;font-size:11px;color:var(--crystal);letter-spacing:.06em;
-    pointer-events:none;transition:.2s;opacity:0}
+    background:rgba(6,12,24,.8);border:1px solid var(--line);border-radius:20px;padding:5px 16px;
+    font-size:11px;color:var(--crystal);letter-spacing:.06em;pointer-events:none;transition:.2s;opacity:0}
   #hint.show{opacity:1;transform:translateX(-50%) translateY(-50%)}
 
-  /* victory */
+  #netstatus{position:fixed;top:8px;left:50%;transform:translateX(-50%);z-index:35;
+    font-size:11px;color:var(--dim);letter-spacing:.1em;background:rgba(6,12,24,.7);
+    border:1px solid var(--line);border-radius:14px;padding:3px 12px;display:none}
+  #netstatus.show{display:block}
+
   #victory{position:fixed;inset:0;z-index:80;display:none;flex-direction:column;
     align-items:center;justify-content:center;gap:18px;text-align:center;
     background:radial-gradient(900px 600px at 50% 45%, rgba(255,212,94,.14), rgba(5,8,16,.97) 70%)}
@@ -251,22 +254,17 @@
     background-clip:text;color:transparent}
   #victory .champ{font-family:var(--disp);letter-spacing:.3em;color:var(--crystal);font-size:16px}
   #victory .final{color:var(--dim)}
-
   .glow{animation:glowpop .5s ease}
-  @keyframes glowpop{0%{transform:scale(1)}40%{transform:scale(1.14);
-    box-shadow:0 0 30px var(--gold)}100%{transform:scale(1)}}
+  @keyframes glowpop{0%{transform:scale(1)}40%{transform:scale(1.14);box-shadow:0 0 30px var(--gold)}100%{transform:scale(1)}}
 
   @media (max-width:760px){
-    .sidecol{width:80px}
-    .card{width:72px;height:98px}
-    #log{display:none}
-    #turnBox{min-width:150px}
+    .sidecol{width:80px}.card{width:72px;height:98px}#log{display:none}#turnBox{min-width:150px}
+    .choices{flex-direction:column}.choice{width:280px}
   }
 </style>
 </head>
 <body>
 
-<!-- crystal core svg reused -->
 <svg style="display:none"><symbol id="crystalCore" viewBox="0 0 100 100">
   <polygon points="50,4 78,30 62,96 38,96 22,30" fill="none" stroke="#38e1ff" stroke-width="2"/>
   <polygon points="50,4 62,96 50,60" fill="rgba(56,225,255,.25)"/>
@@ -275,28 +273,71 @@
   <line x1="50" y1="4" x2="50" y2="96" stroke="#7ce8ff" stroke-width="1"/>
 </symbol></svg>
 
-<!-- ===== START ===== -->
-<div id="start">
+<!-- ===== SCREEN 1: MODE ===== -->
+<div id="scMode" class="screen">
   <svg class="logo-mark" viewBox="0 0 100 100"><use href="#crystalCore"/></svg>
-  <div>
-    <h1>CRYSTALMENT</h1>
-    <div class="sub">Smart Arena · Phygital Card Battle</div>
-  </div>
-  <p class="desc">โลกแตกออกเป็นหลายมิติในเหตุการณ์ <b>The Great Fracture</b> —
-    เธอคือ CrystalMent นักบัญชาการผู้อัญเชิญมอนสเตอร์เพื่อรวบรวมพลังคริสตัล
-    ผู้ใดสะสม Crystal ครบ 10 เม็ดก่อน คือผู้ชนะ</p>
+  <div><h1 class="title">CRYSTALMENT</h1><div class="sub">Smart Arena · Phygital Card Battle</div></div>
+  <p class="desc">โลกแตกออกในเหตุการณ์ <b>The Great Fracture</b> — เธอคือ CrystalMent
+    ผู้อัญเชิญมอนสเตอร์รวบรวมพลังคริสตัล ผู้ใดสะสม <b>Crystal ครบ 10 เม็ด</b> ก่อน คือผู้ชนะ</p>
   <div class="goal">
-    <div><b>1 vs 1</b><span>เผชิญหน้าบนโต๊ะเดียว</span></div>
-    <div><b>10 💎</b><span>สะสม Crystal ให้ครบ</span></div>
-    <div><b>3 การ์ด</b><span>Monster · Magic · Command</span></div>
+    <div><b>1v1</b><span>เผชิญหน้า</span></div>
+    <div><b>10 💎</b><span>สะสมให้ครบ</span></div>
+    <div><b>3</b><span>Monster·Magic·Command</span></div>
   </div>
-  <button class="btn" id="startBtn">เริ่มการต่อสู้ ▸</button>
-  <p style="color:var(--dim);font-size:11px;letter-spacing:.1em">โหมด Hotseat · ผู้เล่นสองคนนั่งคนละฝั่งของจอ</p>
+  <div class="choices">
+    <div class="choice" id="pickOffline">
+      <div class="ic">🎴</div><h3>เล่นในเครื่องนี้</h3>
+      <p>โหมด Offline / Hotseat — สองคนนั่งคนละฝั่งของจอเดียว สลับกันเล่น</p>
+    </div>
+    <div class="choice" id="pickOnline">
+      <div class="ic">🌐</div><h3>เล่นออนไลน์</h3>
+      <p>เล่นข้ามเครื่อง/มือถือคนละเครื่อง สร้างห้องหรือใส่รหัสเข้าร่วม เห็นตัวเองอยู่ล่างเสมอ</p>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SCREEN 2: ONLINE ===== -->
+<div id="scOnline" class="screen hidden">
+  <svg class="logo-mark" viewBox="0 0 100 100" style="width:56px;height:56px"><use href="#crystalCore"/></svg>
+  <h1 class="title" style="font-size:clamp(22px,4vw,34px)">เล่นออนไลน์</h1>
+
+  <div id="onlineChoices" class="choices">
+    <div class="choice" id="pickHost">
+      <div class="ic">📡</div><h3>สร้างห้อง (Host)</h3>
+      <p>สร้างห้องแล้วรับรหัส ส่งให้เพื่อนใส่เพื่อเข้าร่วม เธอจะเป็น Player A</p>
+    </div>
+    <div class="choice" id="pickJoin">
+      <div class="ic">🔑</div><h3>เข้าร่วม (Join)</h3>
+      <p>ใส่รหัสห้องที่เพื่อนส่งมาเพื่อเชื่อมต่อ เธอจะเป็น Player B</p>
+    </div>
+  </div>
+
+  <!-- host panel -->
+  <div id="hostPanel" class="card-panel hidden">
+    <h2>รหัสห้องของเธอ</h2>
+    <div class="roomcode" id="roomCode" title="แตะเพื่อคัดลอก">- - - - -</div>
+    <div class="netmsg" id="hostMsg"><span class="spinner"></span>กำลังเปิดห้อง...</div>
+    <p class="note">ส่งรหัสนี้ให้อีกฝ่าย เมื่อเขากดเข้าร่วม เกมจะเริ่มอัตโนมัติ</p>
+  </div>
+
+  <!-- join panel -->
+  <div id="joinPanel" class="card-panel hidden">
+    <h2>ใส่รหัสห้อง</h2>
+    <div class="field">
+      <input id="joinCode" maxlength="6" placeholder="ABC123" autocomplete="off" autocapitalize="characters">
+      <button class="btn mini" id="joinConnect">เชื่อมต่อ</button>
+    </div>
+    <div class="netmsg" id="joinMsg"></div>
+  </div>
+
+  <p class="note" id="onlineNote">เล่นได้จริงเมื่อเปิดไฟล์นี้ผ่าน URL จริง (เช่นบน server ของเธอ) ในสองเครื่อง ·
+    ทำงานลื่นที่สุดเมื่ออยู่วง Wi-Fi เดียวกัน</p>
+  <button class="btn ghost mini" id="onlineBack">◂ กลับ</button>
 </div>
 
 <!-- ===== TABLE ===== -->
+<div id="netstatus"></div>
 <div id="table">
-  <!-- PLAYER B (top, rotated) -->
   <div class="side b" id="sideB">
     <div class="rail">
       <span class="nameTag">PLAYER B</span>
@@ -309,12 +350,10 @@
     </div>
     <div class="board">
       <div class="sidecol">
-        <div class="slot deck" data-deckslot><span class="slabel">DECK</span>
-          <div class="stack"><b data-deck>40</b>ใบ</div></div>
-        <div class="slot drop"><span class="slabel">DROP</span>
-          <div class="stack"><b data-drop>0</b>ทิ้ง</div></div>
+        <div class="slot deck"><span class="slabel">DECK</span><div class="stack"><b data-deck>40</b>ใบ</div></div>
+        <div class="slot drop"><span class="slabel">DROP</span><div class="stack"><b data-drop>0</b>ทิ้ง</div></div>
       </div>
-      <div class="monsters" data-monsters>
+      <div class="monsters">
         <div class="slot" data-mzone="0"><span class="slabel">MONSTER 1</span></div>
         <div class="slot" data-mzone="1"><span class="slabel">MONSTER 2</span></div>
         <div class="slot" data-mzone="2"><span class="slabel">MONSTER 3</span></div>
@@ -326,28 +365,21 @@
     <div class="hand" data-hand></div>
   </div>
 
-  <!-- CENTER ARENA -->
   <div id="center">
     <svg class="core" viewBox="0 0 100 100"><use href="#crystalCore"/></svg>
-    <div id="turnBox">
-      <div class="who" data-turnwho>เตรียมพร้อม</div>
-      <div class="phase" data-turnphase>Crystal Arena</div>
-    </div>
+    <div id="turnBox"><div class="who" data-turnwho>เตรียมพร้อม</div><div class="phase" data-turnphase>Crystal Arena</div></div>
     <div id="log"></div>
     <svg class="core" viewBox="0 0 100 100" style="animation-direction:reverse"><use href="#crystalCore"/></svg>
   </div>
 
-  <!-- PLAYER A (bottom) -->
   <div class="side a" id="sideA">
     <div class="hand" data-hand></div>
     <div class="board">
       <div class="sidecol">
-        <div class="slot deck" data-deckslot><span class="slabel">DECK</span>
-          <div class="stack"><b data-deck>40</b>ใบ</div></div>
-        <div class="slot drop"><span class="slabel">DROP</span>
-          <div class="stack"><b data-drop>0</b>ทิ้ง</div></div>
+        <div class="slot deck"><span class="slabel">DECK</span><div class="stack"><b data-deck>40</b>ใบ</div></div>
+        <div class="slot drop"><span class="slabel">DROP</span><div class="stack"><b data-drop>0</b>ทิ้ง</div></div>
       </div>
-      <div class="monsters" data-monsters>
+      <div class="monsters">
         <div class="slot" data-mzone="0"><span class="slabel">MONSTER 1</span></div>
         <div class="slot" data-mzone="1"><span class="slabel">MONSTER 2</span></div>
         <div class="slot" data-mzone="2"><span class="slabel">MONSTER 3</span></div>
@@ -377,89 +409,75 @@
   <div class="champ">CHAMPION</div>
   <h2 data-winner>PLAYER A</h2>
   <p class="final" data-finalcrystal>Crystal 10/10 — ปลดล็อกความลับของโลก</p>
-  <button class="btn" id="againBtn">เล่นอีกครั้ง ▸</button>
+  <button class="btn" id="againBtn">กลับเมนู ▸</button>
 </div>
 
 <script>
 "use strict";
-/* ============================================================
-   CRYSTALMENT — Smart Arena Web Demo (single file, no deps)
-   กลไก: draw → main(summon/magic/command) → battle → end turn
-   ชนะเมื่อสะสม Crystal ครบ 10 (ได้จากการทำลายมอนสเตอร์ = CV)
-   ============================================================ */
+/* ==================================================================
+   CRYSTALMENT — Smart Arena Web Demo
+   โหมด Offline (hotseat) + Online จริง (PeerJS WebRTC P2P)
+   ซิงก์ออนไลน์: host แจกไพ่ + ส่ง state เริ่มต้น (deck เหมือนกัน,
+   ไม่มีสุ่มระหว่างเกม -> deterministic) จากนั้นทุก action ส่งเป็น
+   คำสั่งให้อีกฝั่ง apply ซ้ำ -> state ตรงกัน + animation เห็นทั้งคู่
+   ================================================================== */
 
 const EL = {
-  fire:  {c:'var(--fire)',  i:'🔥', th:'ไฟ'},
-  ice:   {c:'var(--ice)',   i:'❄️', th:'น้ำแข็ง'},
-  thunder:{c:'var(--thunder)',i:'⚡', th:'สายฟ้า'},
-  earth: {c:'var(--earth)', i:'⛰️', th:'ดิน'},
-  wind:  {c:'var(--wind)',  i:'🌪️', th:'ลม'},
-  dark:  {c:'var(--dark)',  i:'🌑', th:'มืด'},
-  light: {c:'var(--light)', i:'✨', th:'แสง'},
-  neutral:{c:'var(--neutral)',i:'💠',th:'ไร้ธาตุ'},
+  fire:{c:'var(--fire)',i:'🔥'}, ice:{c:'var(--ice)',i:'❄️'},
+  thunder:{c:'var(--thunder)',i:'⚡'}, earth:{c:'var(--earth)',i:'⛰️'},
+  wind:{c:'var(--wind)',i:'🌪️'}, dark:{c:'var(--dark)',i:'🌑'},
+  light:{c:'var(--light)',i:'✨'}, neutral:{c:'var(--neutral)',i:'💠'},
 };
-
-// ---- card pool ----
-// monster: {cv, el, atk, hp, skill}
-// magic/command: {el, fx(effect fn), desc}
 const POOL = [
-  // MONSTERS
-  {t:'monster', name:'Inferno Dragon',  art:'🐉', el:'fire',   cv:5, atk:2850, hp:8500, skill:'Blazing Roar · ทำลายเมื่อเข้าสนามลด HP ศัตรูทุกตัว 500'},
-  {t:'monster', name:'Frost Guardian',  art:'🐺', el:'ice',    cv:3, atk:1800, hp:6000, skill:'Frozen Ward · แช่แข็งผู้โจมตี'},
-  {t:'monster', name:'Thunder Beast',   art:'🐅', el:'thunder',cv:4, atk:2400, hp:5000, skill:'Chain Bolt'},
-  {t:'monster', name:'Stone Golem',     art:'🗿', el:'earth',  cv:2, atk:1200, hp:9000, skill:'Bulwark · HP สูง ทนทาน'},
-  {t:'monster', name:'Wind Serpent',    art:'🐍', el:'wind',   cv:3, atk:2100, hp:4000, skill:'Gale Slash'},
-  {t:'monster', name:'Shadow Reaper',   art:'💀', el:'dark',   cv:4, atk:2600, hp:3200, skill:'Soul Harvest'},
-  {t:'monster', name:'Light Paladin',   art:'🛡️', el:'light',  cv:3, atk:2000, hp:5500, skill:'Aegis'},
-  {t:'monster', name:'Crystal Wisp',    art:'🔷', el:'neutral',cv:1, atk:900,  hp:2200, skill:'Spark'},
-  {t:'monster', name:'Magma Titan',     art:'🌋', el:'fire',   cv:5, atk:3000, hp:7000, skill:'Eruption'},
-  {t:'monster', name:'Storm Griffin',   art:'🦅', el:'wind',   cv:4, atk:2500, hp:4600, skill:'Cyclone'},
-  // MAGIC
-  {t:'magic', name:'Absolute Blizzard', art:'❄️', el:'ice',   effect:'freeze', desc:'แช่แข็งมอนสเตอร์ศัตรู 1 ตัว 1 เทิร์น และลด ATK 500'},
-  {t:'magic', name:'Meteor Strike',     art:'☄️', el:'fire',  effect:'burn2000', desc:'สร้างความเสียหาย 2000 แก่มอนสเตอร์ศัตรู 1 ตัว'},
-  {t:'magic', name:'Healing Light',     art:'💚', el:'light', effect:'heal3000', desc:'ฟื้นฟู HP มอนสเตอร์ของเรา 1 ตัว 3000 หน่วย'},
-  {t:'magic', name:'Power Surge',       art:'⚡', el:'thunder',effect:'buff1000', desc:'เพิ่ม ATK มอนสเตอร์ของเรา 1 ตัว 1000 (ถาวร)'},
-  // COMMAND
-  {t:'command', name:'Tactical Shift',  art:'🎯', el:'neutral', effect:'weaken', desc:'เลือกมอนสเตอร์ศัตรู 1 ตัว ลด ATK ลงครึ่งหนึ่ง'},
-  {t:'command', name:'Force Retreat',   art:'↩️', el:'neutral', effect:'retreat', desc:'ส่งมอนสเตอร์ศัตรู 1 ตัว กลับสู่ท้าย Deck'},
+  {t:'monster',name:'Inferno Dragon',art:'🐉',el:'fire',cv:5,atk:2850,hp:8500},
+  {t:'monster',name:'Frost Guardian',art:'🐺',el:'ice',cv:3,atk:1800,hp:6000},
+  {t:'monster',name:'Thunder Beast',art:'🐅',el:'thunder',cv:4,atk:2400,hp:5000},
+  {t:'monster',name:'Stone Golem',art:'🗿',el:'earth',cv:2,atk:1200,hp:9000},
+  {t:'monster',name:'Wind Serpent',art:'🐍',el:'wind',cv:3,atk:2100,hp:4000},
+  {t:'monster',name:'Shadow Reaper',art:'💀',el:'dark',cv:4,atk:2600,hp:3200},
+  {t:'monster',name:'Light Paladin',art:'🛡️',el:'light',cv:3,atk:2000,hp:5500},
+  {t:'monster',name:'Crystal Wisp',art:'🔷',el:'neutral',cv:1,atk:900,hp:2200},
+  {t:'monster',name:'Magma Titan',art:'🌋',el:'fire',cv:5,atk:3000,hp:7000},
+  {t:'monster',name:'Storm Griffin',art:'🦅',el:'wind',cv:4,atk:2500,hp:4600},
+  {t:'magic',name:'Absolute Blizzard',art:'❄️',el:'ice',effect:'freeze'},
+  {t:'magic',name:'Meteor Strike',art:'☄️',el:'fire',effect:'burn2000'},
+  {t:'magic',name:'Healing Light',art:'💚',el:'light',effect:'heal3000'},
+  {t:'magic',name:'Power Surge',art:'⚡',el:'thunder',effect:'buff1000'},
+  {t:'command',name:'Tactical Shift',art:'🎯',el:'neutral',effect:'weaken'},
+  {t:'command',name:'Force Retreat',art:'↩️',el:'neutral',effect:'retreat'},
 ];
-
-// build a 40-card deck: weighted mix
 function buildDeck(){
-  const monsters = POOL.filter(c=>c.t==='monster');
-  const magics   = POOL.filter(c=>c.t==='magic');
-  const cmds     = POOL.filter(c=>c.t==='command');
-  let deck=[];
-  // ~26 monsters, ~9 magic, ~5 command
-  for(let i=0;i<26;i++) deck.push(clone(pick(monsters)));
-  for(let i=0;i<9;i++)  deck.push(clone(pick(magics)));
-  for(let i=0;i<5;i++)  deck.push(clone(pick(cmds)));
-  return shuffle(deck);
+  const M=POOL.filter(c=>c.t==='monster'),G_=POOL.filter(c=>c.t==='magic'),C=POOL.filter(c=>c.t==='command');
+  let d=[]; for(let i=0;i<26;i++)d.push(clone(pick(M)));
+  for(let i=0;i<9;i++)d.push(clone(pick(G_))); for(let i=0;i<5;i++)d.push(clone(pick(C)));
+  return shuffle(d);
 }
 let UID=1;
-function clone(c){const o=JSON.parse(JSON.stringify(c)); o.uid=UID++; if(o.t==='monster'){o.maxhp=o.hp; o.baseatk=o.atk; o.exhausted=true; o.frozen=0;} return o;}
+function clone(c){const o=JSON.parse(JSON.stringify(c));o.uid=UID++;
+  if(o.t==='monster'){o.maxhp=o.hp;o.baseatk=o.atk;o.exhausted=true;o.frozen=0;}return o;}
 function pick(a){return a[Math.floor(Math.random()*a.length)];}
 function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
 
-// ---- game state ----
 const G = {
   players:{
-    a:{key:'a', name:'PLAYER A', deck:[], hand:[], mzones:[null,null,null], mgzone:null, drop:0, crystal:0},
-    b:{key:'b', name:'PLAYER B', deck:[], hand:[], mzones:[null,null,null], mgzone:null, drop:0, crystal:0},
+    a:{key:'a',name:'PLAYER A',deck:[],hand:[],mzones:[null,null,null],mgzone:null,drop:0,crystal:0},
+    b:{key:'b',name:'PLAYER B',deck:[],hand:[],mzones:[null,null,null],mgzone:null,drop:0,crystal:0},
   },
-  turn:'a',
-  phase:'idle',
-  selectedHand:null,     // card obj chosen from hand to play
-  selectedAttacker:null, // {zone} monster chosen to attack
-  targetMode:null,       // 'attack'|'magicEnemy'|'magicAlly'|'commandEnemy'
-  over:false,
+  turn:'a', phase:'idle', over:false,
+  selectedHand:null, selectedAttacker:null, targetMode:null,
+  online:false, myKey:null,
 };
+let peer=null, conn=null;
 
 const $ = s=>document.querySelector(s);
 const sideEl = k => document.getElementById(k==='a'?'sideA':'sideB');
 const opp = k => k==='a'?'b':'a';
+// DOM position for a data key: local player (myKey / offline 'a') sits at bottom (sideA DOM)
+const bottomKey = () => G.online ? G.myKey : 'a';
+const domSide = dataKey => sideEl(dataKey===bottomKey() ? 'a' : 'b');
+const canControl = k => !G.over && G.turn===k && (!G.online || G.myKey===k);
 
-// ---------- flow ----------
+/* ---------------- game setup ---------------- */
 function newGame(){
   G.over=false; G.turn='a'; G.phase='idle';
   G.selectedHand=null; G.selectedAttacker=null; G.targetMode=null;
@@ -468,396 +486,391 @@ function newGame(){
     p.deck=buildDeck(); p.hand=[]; p.mzones=[null,null,null]; p.mgzone=null; p.drop=0; p.crystal=0;
     for(let i=0;i<5;i++) p.hand.push(p.deck.pop());
   }
-  clearLog();
-  log('<b>เกมเริ่ม!</b> ทั้งสองฝ่ายจั่วการ์ด 5 ใบ');
+  clearLog(); log('<b>เกมเริ่ม!</b> ทั้งสองฝ่ายจั่ว 5 ใบ');
   document.getElementById('victory').classList.remove('show');
-  renderAll();
-  startTurn('a', true);
+  startTurn('a');
 }
-
-function startTurn(k, first){
-  G.turn=k; G.phase='draw'; G.selectedHand=null; G.selectedAttacker=null; G.targetMode=null;
+function startTurn(k){
+  G.turn=k; G.phase='main'; G.selectedHand=null; G.selectedAttacker=null; G.targetMode=null;
   const p=G.players[k];
-  // refresh: un-exhaust own monsters, tick freeze
-  p.mzones.forEach(m=>{if(m){m.exhausted=false; if(m.frozen>0){m.frozen--; if(m.frozen===0) m.exhausted=false; else m.exhausted=true;}}});
-  // draw
-  if(p.deck.length>0){
-    const c=p.deck.pop(); p.hand.push(c);
-    log(`<b>${p.name}</b> จั่วการ์ด 1 ใบ`);
-  } else { log(`<span class="r">${p.name} deck หมด!</span>`); }
-  G.phase='main';
-  setTurnBanner(k);
-  renderAll();
-}
-
-function setTurnBanner(k){
-  const p=G.players[k];
-  $('[data-turnwho]').textContent = p.name + ' TURN';
+  p.mzones.forEach(m=>{if(m){ if(m.frozen>0){m.frozen--; m.exhausted=(m.frozen>0);} else m.exhausted=false; }});
+  if(p.deck.length>0){ p.hand.push(p.deck.pop()); log(`<b>${p.name}</b> จั่วการ์ด 1 ใบ`); }
+  else log(`<span class="r">${p.name} deck หมด!</span>`);
+  $('[data-turnwho]').textContent=p.name+' TURN';
   $('[data-turnwho]').style.color = k==='a' ? '#7ce0ff':'#ffb27c';
-  $('[data-turnphase]').textContent = 'Main Phase · เล่นการ์ด แล้ว End Turn';
-}
-
-function endTurn(){
-  if(G.over) return;
-  cancelSelection();
-  const nk=opp(G.turn);
-  log(`<b>${G.players[G.turn].name}</b> จบเทิร์น`);
-  startTurn(nk,false);
-}
-
-// ---------- playing cards ----------
-function onHandCard(k, card){
-  if(G.turn!==k||G.over) return;
-  cancelAttackSelect();
-  if(G.selectedHand===card){ cancelSelection(); return; }
-  G.selectedHand=card;
-  if(card.t==='monster'){
-    G.targetMode='summon';
-    hint('เลือกช่อง MONSTER ที่ว่างเพื่ออัญเชิญ');
-  } else if(card.t==='magic'){
-    if(card.effect==='heal3000'||card.effect==='buff1000'){
-      G.targetMode='magicAlly'; hint('เลือกมอนสเตอร์ของเธอเป็นเป้าหมาย');
-    } else {
-      G.targetMode='magicEnemy'; hint('เลือกมอนสเตอร์ศัตรูเป็นเป้าหมาย');
-    }
-  } else { // command
-    G.targetMode='commandEnemy'; hint('เลือกมอนสเตอร์ศัตรูที่จะออกคำสั่ง');
-  }
+  $('[data-turnphase]').textContent='Main Phase · เล่นการ์ด แล้ว End Turn';
   renderAll();
 }
 
-function onSummonSlot(k, zoneIdx){
-  if(G.turn!==k||!G.selectedHand||G.selectedHand.t!=='monster') return;
-  const p=G.players[k];
-  if(p.mzones[zoneIdx]) return;
-  const card=G.selectedHand;
-  p.hand=p.hand.filter(c=>c!==card);
-  card.exhausted=true; // summoning sickness
-  p.mzones[zoneIdx]=card;
+/* ---------------- action dispatch (offline + online replicated) ---------------- */
+const ACTIONS = {
+  summon: applySummon, magicAlly: applyMagicAlly, magicEnemy: applyMagicEnemy,
+  command: applyCommand, attack: applyAttack, endturn: applyEndTurn,
+};
+function applyAction(name,args){ ACTIONS[name].apply(null,args); }
+function doAction(name,args){
+  applyAction(name,args);                                   // apply locally
+  if(G.online && conn && conn.open) conn.send({type:'act',name,args}); // replicate
+}
+
+/* ---------------- apply* : deterministic, uid-based (no UI state) ---------------- */
+function applySummon(k, uid, zoneIdx){
+  const p=G.players[k]; const card=p.hand.find(c=>c.uid===uid);
+  if(!card||p.mzones[zoneIdx]) return;
+  p.hand=p.hand.filter(c=>c.uid!==uid); card.exhausted=true; p.mzones[zoneIdx]=card;
   log(`<b>${p.name}</b> อัญเชิญ <b>${card.name}</b> ⚔${card.atk}`);
-  // on-summon skill
   if(card.name==='Inferno Dragon'){
     const o=G.players[opp(k)]; let hit=false;
-    o.mzones.forEach((m,zi)=>{ if(m){ damageMonster(k,opp(k),zi,500,true); hit=true; }});
+    o.mzones.forEach((m,zi)=>{ if(m){ damageMonster(k,opp(k),zi,500); hit=true; }});
     if(hit) toast('🔥','Blazing Roar','ลด HP ศัตรูทุกตัว 500');
   }
-  cancelSelection(); renderAll(); checkWin();
+  renderAll(); checkWin();
 }
-
-function onTargetMonster(ownerK, zoneIdx){
-  const card=G.selectedHand;
-  const me=G.turn;
-  if(!card) { // maybe attack targeting
-    if(G.selectedAttacker && ownerK===opp(me)) doAttack(zoneIdx);
-    return;
-  }
-  const target=G.players[ownerK].mzones[zoneIdx];
-  if(!target) return;
-
-  if(G.targetMode==='magicAlly' && ownerK===me){
-    if(card.effect==='heal3000'){
-      target.hp=Math.min(target.maxhp, target.hp+3000);
-      toast(EL[card.el].i,card.name,`ฟื้นฟู ${target.name} +3000 HP`);
-    } else if(card.effect==='buff1000'){
-      target.atk+=1000;
-      toast(EL[card.el].i,card.name,`${target.name} ATK +1000`);
-    }
-    discardMagic(me,card); log(`<b>${G.players[me].name}</b> ใช้ <b>${card.name}</b>`);
-    cancelSelection(); renderAll();
-  }
-  else if(G.targetMode==='magicEnemy' && ownerK===opp(me)){
-    if(card.effect==='freeze'){
-      target.frozen=1; target.exhausted=true; target.atk=Math.max(0,target.atk-500);
-      toast(EL[card.el].i,card.name,`แช่แข็ง ${target.name} + ATK -500`);
-    } else if(card.effect==='burn2000'){
-      toast(EL[card.el].i,card.name,`สร้างความเสียหาย 2000 แก่ ${target.name}`);
-      damageMonster(me,ownerK,zoneIdx,2000,false);
-    }
-    discardMagic(me,card); log(`<b>${G.players[me].name}</b> ใช้ <b>${card.name}</b>`);
-    cancelSelection(); renderAll(); checkWin();
-  }
-  else if(G.targetMode==='commandEnemy' && ownerK===opp(me)){
-    if(card.effect==='weaken'){
-      target.atk=Math.floor(target.atk/2);
-      toast(EL[card.el].i,card.name,`${target.name} ATK ลดลงครึ่งหนึ่ง`);
-    } else if(card.effect==='retreat'){
-      const o=G.players[ownerK];
-      o.mzones[zoneIdx]=null; o.deck.unshift(target);
-      toast(EL[card.el].i,card.name,`${target.name} ถูกส่งกลับ Deck`);
-    }
-    discardMagic(me,card,true); log(`<b>${G.players[me].name}</b> ออกคำสั่ง <b>${card.name}</b>`);
-    cancelSelection(); renderAll();
-  }
+function applyMagicAlly(k, uid, zoneIdx){
+  const p=G.players[k]; const card=p.hand.find(c=>c.uid===uid); const target=p.mzones[zoneIdx];
+  if(!card||!target) return;
+  if(card.effect==='heal3000'){ target.hp=Math.min(target.maxhp,target.hp+3000);
+    toast(EL[card.el].i,card.name,`ฟื้นฟู ${target.name} +3000 HP`); }
+  else if(card.effect==='buff1000'){ target.atk+=1000; toast(EL[card.el].i,card.name,`${target.name} ATK +1000`); }
+  discard(k,uid); log(`<b>${p.name}</b> ใช้ <b>${card.name}</b>`); renderAll();
 }
-
-function discardMagic(k,card,isCmd){
-  const p=G.players[k];
-  p.hand=p.hand.filter(c=>c!==card);
-  p.drop++;
+function applyMagicEnemy(k, uid, zoneIdx){
+  const p=G.players[k]; const card=p.hand.find(c=>c.uid===uid);
+  const owner=opp(k); const target=G.players[owner].mzones[zoneIdx];
+  if(!card||!target) return;
+  if(card.effect==='freeze'){ target.frozen=1; target.exhausted=true; target.atk=Math.max(0,target.atk-500);
+    toast(EL[card.el].i,card.name,`แช่แข็ง ${target.name} + ATK -500`); }
+  else if(card.effect==='burn2000'){ toast(EL[card.el].i,card.name,`ความเสียหาย 2000 แก่ ${target.name}`);
+    damageMonster(k,owner,zoneIdx,2000); }
+  discard(k,uid); log(`<b>${p.name}</b> ใช้ <b>${card.name}</b>`); renderAll(); checkWin();
 }
-
-// ---------- battle ----------
-function onAttackerCard(k, zoneIdx){
-  if(G.turn!==k||G.over) return;
-  if(G.selectedHand) return;
-  const m=G.players[k].mzones[zoneIdx];
-  if(!m||m.exhausted||m.frozen>0) return;
-  if(G.selectedAttacker && G.selectedAttacker.zone===zoneIdx){ cancelAttackSelect(); return; }
-  G.selectedAttacker={zone:zoneIdx};
-  G.targetMode='attack';
-  hint(`เลือกมอนสเตอร์ศัตรูเพื่อโจมตีด้วย ${m.name}`);
-  renderAll();
+function applyCommand(k, uid, zoneIdx){
+  const p=G.players[k]; const card=p.hand.find(c=>c.uid===uid);
+  const owner=opp(k); const target=G.players[owner].mzones[zoneIdx];
+  if(!card||!target) return;
+  if(card.effect==='weaken'){ target.atk=Math.floor(target.atk/2);
+    toast(EL[card.el].i,card.name,`${target.name} ATK ลดครึ่ง`); }
+  else if(card.effect==='retreat'){ G.players[owner].mzones[zoneIdx]=null; G.players[owner].deck.unshift(target);
+    toast(EL[card.el].i,card.name,`${target.name} ถูกส่งกลับ Deck`); }
+  discard(k,uid); log(`<b>${p.name}</b> ออกคำสั่ง <b>${card.name}</b>`); renderAll();
 }
-
-function doAttack(defZone){
-  const me=G.turn, en=opp(me);
-  const atkZone=G.selectedAttacker.zone;
-  const atkM=G.players[me].mzones[atkZone];
-  const defM=G.players[en].mzones[defZone];
+function applyAttack(k, atkZone, defZone){
+  const en=opp(k);
+  const atkM=G.players[k].mzones[atkZone]; const defM=G.players[en].mzones[defZone];
   if(!atkM||!defM) return;
-
-  // animate clash
-  const atkEl = zoneCardEl(me,atkZone);
-  const defEl = zoneCardEl(en,defZone);
-  sparkBetween(atkEl,defEl);
-
+  sparkBetween(zoneCardEl(k,atkZone), zoneCardEl(en,defZone));
   atkM.exhausted=true;
-  const dmg=atkM.atk;
-  log(`<b>${atkM.name}</b> โจมตี ${defM.name} (-${dmg} HP)`);
-  const destroyed = damageMonster(me,en,defZone,dmg,false);
-
-  // Frost Guardian retaliation freeze
+  log(`<b>${atkM.name}</b> โจมตี ${defM.name} (-${atkM.atk} HP)`);
+  const destroyed=damageMonster(k,en,defZone,atkM.atk);
   if(!destroyed && defM.name==='Frost Guardian'){
-    atkM.frozen=1; atkM.exhausted=true;
-    log(`<span class="r">Frozen Ward!</span> ${atkM.name} ถูกแช่แข็ง`);
+    atkM.frozen=1; atkM.exhausted=true; log(`<span class="r">Frozen Ward!</span> ${atkM.name} ถูกแช่แข็ง`);
   }
-  cancelAttackSelect(); renderAll(); checkWin();
+  renderAll(); checkWin();
 }
+function applyEndTurn(k){
+  if(k!==G.turn) return;
+  log(`<b>${G.players[k].name}</b> จบเทิร์น`);
+  startTurn(opp(k));
+}
+function discard(k,uid){ const p=G.players[k]; p.hand=p.hand.filter(c=>c.uid!==uid); p.drop++; }
 
-// returns true if target destroyed
-function damageMonster(attackerK, ownerK, zoneIdx, dmg, silent){
-  const o=G.players[ownerK];
-  const m=o.mzones[zoneIdx];
-  if(!m) return false;
-  m.hp-=dmg;
-  const el=zoneCardEl(ownerK,zoneIdx);
-  if(el) floatDmg(el, dmg);
+function damageMonster(attackerK, ownerK, zoneIdx, dmg){
+  const o=G.players[ownerK]; const m=o.mzones[zoneIdx]; if(!m) return false;
+  m.hp-=dmg; const el=zoneCardEl(ownerK,zoneIdx); if(el) floatDmg(el,dmg);
   if(m.hp<=0){
-    // destroyed → attacker gains CV crystals
     o.mzones[zoneIdx]=null; o.drop++;
-    if(attackerK){
-      const gain=m.cv;
-      G.players[attackerK].crystal+=gain;
+    if(attackerK){ const gain=m.cv; G.players[attackerK].crystal+=gain;
       log(`<span class="g">${m.name} ถูกทำลาย! ${G.players[attackerK].name} ได้ ${gain} 💎</span>`);
-      const targetEl=sideEl(attackerK).querySelector('[data-crystal]');
-      crystalFly(el, targetEl, gain);
-    } else {
-      log(`<span class="r">${m.name} ถูกทำลาย</span>`);
-    }
+      crystalFly(el, domSide(attackerK).querySelector('[data-crystal]'), gain);
+    } else log(`<span class="r">${m.name} ถูกทำลาย</span>`);
     return true;
   }
   return false;
 }
-
-function checkWin(){
-  for(const k of ['a','b']){
-    if(G.players[k].crystal>=10){ winGame(k); return; }
-  }
-}
+function checkWin(){ for(const k of ['a','b']) if(G.players[k].crystal>=10){ winGame(k); return; } }
 function winGame(k){
   G.over=true; cancelSelection();
   const p=G.players[k];
   $('[data-winner]').textContent=p.name;
   $('[data-winner]').style.color = k==='a' ? '#7ce0ff':'#ffb27c';
   $('[data-finalcrystal]').textContent=`Crystal ${p.crystal}/10 — ปลดล็อกความลับของโลกใบนี้`;
-  log(`<span class="g">🏆 ${p.name} ชนะการต่อสู้!</span>`);
-  renderAll();
+  log(`<span class="g">🏆 ${p.name} ชนะ!</span>`); renderAll();
   setTimeout(()=>document.getElementById('victory').classList.add('show'),700);
 }
 
-// ---------- selection helpers ----------
+/* ---------------- local UI intents ---------------- */
+function onHandCard(k, card){
+  if(!canControl(k)) return; cancelAttackSelect();
+  if(G.selectedHand===card){ cancelSelection(); return; }
+  G.selectedHand=card;
+  if(card.t==='monster'){ G.targetMode='summon'; hint('เลือกช่อง MONSTER ว่างเพื่ออัญเชิญ'); }
+  else if(card.t==='magic'){
+    if(card.effect==='heal3000'||card.effect==='buff1000'){ G.targetMode='magicAlly'; hint('เลือกมอนสเตอร์ของเธอ'); }
+    else { G.targetMode='magicEnemy'; hint('เลือกมอนสเตอร์ศัตรู'); }
+  } else { G.targetMode='commandEnemy'; hint('เลือกมอนสเตอร์ศัตรูที่จะออกคำสั่ง'); }
+  renderAll();
+}
+function onSummonSlot(k, zoneIdx){
+  if(!canControl(k)||!G.selectedHand||G.selectedHand.t!=='monster'||G.players[k].mzones[zoneIdx]) return;
+  const card=G.selectedHand; cancelSelection(); doAction('summon',[k,card.uid,zoneIdx]);
+}
+function onTargetMonster(ownerK, zoneIdx){
+  const card=G.selectedHand; const me=G.turn;
+  if(!card){ if(G.selectedAttacker && ownerK===opp(me)) doAttack(zoneIdx); return; }
+  if(!canControl(me)) return;
+  if(G.targetMode==='magicAlly' && ownerK===me){ const u=card.uid; cancelSelection(); doAction('magicAlly',[me,u,zoneIdx]); }
+  else if(G.targetMode==='magicEnemy' && ownerK===opp(me)){ const u=card.uid; cancelSelection(); doAction('magicEnemy',[me,u,zoneIdx]); }
+  else if(G.targetMode==='commandEnemy' && ownerK===opp(me)){ const u=card.uid; cancelSelection(); doAction('command',[me,u,zoneIdx]); }
+}
+function onAttackerCard(k, zoneIdx){
+  if(!canControl(k)||G.selectedHand) return;
+  const m=G.players[k].mzones[zoneIdx]; if(!m||m.exhausted||m.frozen>0) return;
+  if(G.selectedAttacker && G.selectedAttacker.zone===zoneIdx){ cancelAttackSelect(); renderAll(); return; }
+  G.selectedAttacker={zone:zoneIdx}; G.targetMode='attack';
+  hint(`เลือกมอนสเตอร์ศัตรูเพื่อโจมตีด้วย ${m.name}`); renderAll();
+}
+function doAttack(defZone){
+  const me=G.turn; if(!canControl(me)||!G.selectedAttacker) return;
+  const atkZone=G.selectedAttacker.zone; cancelAttackSelect(); doAction('attack',[me,atkZone,defZone]);
+}
+function endTurn(){ if(!canControl(G.turn)) return; const k=G.turn; cancelSelection(); doAction('endturn',[k]); }
+
 function cancelSelection(){ G.selectedHand=null; G.selectedAttacker=null; G.targetMode=null; hideHint(); renderAll(); }
 function cancelAttackSelect(){ G.selectedAttacker=null; if(G.targetMode==='attack')G.targetMode=null; hideHint(); }
 
-// ============ RENDER ============
+/* ---------------- RENDER (viewpoint-aware) ---------------- */
 function renderAll(){
-  for(const k of ['a','b']) renderSide(k);
-  const active=G.turn;
-  sideEl('a').classList.toggle('inactive', active!=='a'||G.over);
-  sideEl('b').classList.toggle('inactive', active!=='b'||G.over);
+  const bottom=bottomKey(), top=opp(bottom);
+  renderSideInto(bottom,'a'); renderSideInto(top,'b');
+  sideEl('a').classList.toggle('inactive',(bottom!==G.turn)||G.over);
+  sideEl('b').classList.toggle('inactive',(top!==G.turn)||G.over);
 }
+function renderSideInto(dataKey, domKey){
+  const p=G.players[dataKey]; const side=sideEl(domKey);
+  const nt=side.querySelector('.nameTag');
+  nt.textContent=p.name; nt.style.color = dataKey==='a' ? '#7ce0ff':'#ffb27c';
 
-function renderSide(k){
-  const p=G.players[k], side=sideEl(k);
-  // status
   const st=side.querySelector('[data-status]');
-  st.textContent = (G.turn===k&&!G.over) ? 'ตาของเธอ' : 'รอเทิร์น';
-  st.classList.toggle('ready', G.turn===k&&!G.over);
-  // crystal
+  st.textContent = canControl(dataKey) ? 'ตาของเธอ' : (G.turn===dataKey && !G.over ? 'กำลังเล่น...' : 'รอเทิร์น');
+  st.classList.toggle('ready', canControl(dataKey));
+
   side.querySelector('[data-crystal]').textContent=p.crystal;
   side.querySelector('[data-cbar]').style.width=Math.min(100,p.crystal*10)+'%';
   side.querySelector('[data-deck]').textContent=p.deck.length;
   side.querySelector('[data-drop]').textContent=p.drop;
 
-  // actions (End Turn)
-  const act=side.querySelector('[data-actions]');
-  act.innerHTML='';
-  if(G.turn===k && !G.over){
+  const act=side.querySelector('[data-actions]'); act.innerHTML='';
+  if(canControl(dataKey)){
     const b=document.createElement('button'); b.className='btn mini';
-    b.textContent = G.selectedHand||G.selectedAttacker ? 'ยกเลิก ✕' : 'จบเทิร์น ▸';
+    b.textContent = (G.selectedHand||G.selectedAttacker) ? 'ยกเลิก ✕' : 'จบเทิร์น ▸';
     b.onclick = (G.selectedHand||G.selectedAttacker) ? cancelSelection : endTurn;
     act.appendChild(b);
   }
 
   // hand
-  const handEl=side.querySelector('[data-hand]');
-  handEl.innerHTML='';
-  handEl.classList.toggle('locked', G.turn!==k||G.over);
-  p.hand.forEach(card=>{
-    const el=makeCard(card, true);
-    if(card===G.selectedHand){ el.style.transform='translateY(-16px) scale(1.06)';
-      el.style.margin='0 2px'; el.style.boxShadow='0 0 0 2px var(--crystal),0 0 22px rgba(56,225,255,.6)'; }
-    el.onclick=()=>onHandCard(k,card);
-    handEl.appendChild(el);
-  });
+  const handEl=side.querySelector('[data-hand]'); handEl.innerHTML='';
+  const showFace = !G.online || dataKey===G.myKey;
+  handEl.classList.toggle('locked', !canControl(dataKey));
+  if(showFace){
+    p.hand.forEach(card=>{
+      const el=makeCard(card);
+      if(card===G.selectedHand){ el.style.transform='translateY(-16px) scale(1.06)'; el.style.margin='0 2px';
+        el.style.boxShadow='0 0 0 2px var(--crystal),0 0 22px rgba(56,225,255,.6)'; }
+      if(canControl(dataKey)) el.onclick=()=>onHandCard(dataKey,card);
+      handEl.appendChild(el);
+    });
+  } else {
+    p.hand.forEach(()=>handEl.appendChild(makeBack()));
+  }
 
   // monster zones
   p.mzones.forEach((m,zi)=>{
     const slot=side.querySelector(`[data-mzone="${zi}"]`);
     slot.innerHTML=`<span class="slabel">MONSTER ${zi+1}</span>`;
-    slot.classList.remove('can-summon');
-    // summon highlight
-    if(G.turn===k && G.selectedHand && G.selectedHand.t==='monster' && !m){
-      slot.classList.add('can-summon');
-      slot.onclick=()=>onSummonSlot(k,zi);
-    } else if(!m){
-      slot.onclick=null;
+    slot.classList.remove('can-summon'); slot.onclick=null;
+    if(canControl(dataKey) && G.selectedHand && G.selectedHand.t==='monster' && !m){
+      slot.classList.add('can-summon'); slot.onclick=()=>onSummonSlot(dataKey,zi);
     }
     if(m){
-      const cel=makeCard(m,false);
-      // hp bar
+      const cel=makeCard(m);
       const bar=document.createElement('div'); bar.className='hpbar';
       bar.style.width=Math.max(0,Math.min(100,(m.hp/m.maxhp)*100))+'%'; cel.appendChild(bar);
       if(m.frozen>0) cel.classList.add('frozen');
-      // interactions
-      const isMine=(k===G.turn);
-      let handled=false;
-      if(isMine && !G.selectedHand && !G.over){
-        if(!m.exhausted && m.frozen===0){ cel.classList.add('attacker','can-attack'); }
+      if(canControl(dataKey) && !G.selectedHand){
+        if(!m.exhausted && m.frozen===0) cel.classList.add('can-attack');
         if(G.selectedAttacker && G.selectedAttacker.zone===zi) cel.classList.add('can-attack');
-        cel.onclick=()=>onAttackerCard(k,zi); handled=true;
-      }
-      if(m.exhausted && !cel.classList.contains('can-attack')) cel.classList.add('exhausted');
-      // target highlighting
-      if(G.targetMode==='attack' && G.selectedAttacker && k===opp(G.turn)){
-        cel.classList.add('target'); cel.onclick=()=>doAttack(zi); handled=true;
-      }
-      if(G.targetMode==='magicEnemy' && k===opp(G.turn)){
-        cel.classList.add('target'); cel.onclick=()=>onTargetMonster(k,zi); handled=true;
-      }
-      if(G.targetMode==='commandEnemy' && k===opp(G.turn)){
-        cel.classList.add('target'); cel.onclick=()=>onTargetMonster(k,zi); handled=true;
-      }
-      if(G.targetMode==='magicAlly' && k===G.turn){
-        cel.classList.add('target'); cel.onclick=()=>onTargetMonster(k,zi); handled=true;
-      }
+        cel.onclick=()=>onAttackerCard(dataKey,zi);
+      } else if(m.exhausted){ cel.classList.add('exhausted'); }
+      // target highlight (only meaningful on the local controller's screen)
+      if(G.targetMode==='attack' && G.selectedAttacker && canControl(G.turn) && dataKey===opp(G.turn)){
+        cel.classList.add('target'); cel.onclick=()=>doAttack(zi); }
+      if((G.targetMode==='magicEnemy'||G.targetMode==='commandEnemy') && canControl(G.turn) && dataKey===opp(G.turn)){
+        cel.classList.add('target'); cel.onclick=()=>onTargetMonster(dataKey,zi); }
+      if(G.targetMode==='magicAlly' && canControl(G.turn) && dataKey===G.turn){
+        cel.classList.add('target'); cel.onclick=()=>onTargetMonster(dataKey,zi); }
       slot.appendChild(cel);
     }
   });
 
-  // magic zone (just shows count via drop; keep empty placeholder — magic resolves instantly)
-  const mg=side.querySelector('[data-mgzone]');
-  mg.innerHTML='<span class="slabel">MAGIC</span>';
-  if(G.turn===k && G.selectedHand && (G.selectedHand.t==='magic'||G.selectedHand.t==='command')){
-    const prev=makeCard(G.selectedHand,false);
-    prev.style.opacity='.9'; prev.style.transform='scale(.9)';
-    mg.appendChild(prev);
+  const mg=side.querySelector('[data-mgzone]'); mg.innerHTML='<span class="slabel">MAGIC</span>';
+  if(canControl(dataKey) && G.selectedHand && (G.selectedHand.t==='magic'||G.selectedHand.t==='command')){
+    const prev=makeCard(G.selectedHand); prev.style.opacity='.9'; prev.style.transform='scale(.9)'; mg.appendChild(prev);
   }
 }
+function makeCard(c){
+  const d=document.createElement('div'); d.className='card'; d.style.setProperty('--el',EL[c.el].c); d.dataset.uid=c.uid;
+  let s=`<div class="art">${c.art}</div><div class="type-band"></div><div class="elem">${EL[c.el].i}</div>`;
+  if(c.t==='monster'){ s+=`<div class="cv">${c.cv}</div><div class="name">${c.name}</div>
+    <div class="stats"><span class="atk">⚔${c.atk}</span><span class="hp">❤${Math.max(0,c.hp)}</span></div>`; }
+  else { s+=`<div class="kind">${c.t==='magic'?'MAGIC':'COMMAND'}</div><div class="name">${c.name}</div>
+    <div class="fx">${shortFx(c)}</div>`; }
+  d.innerHTML=s; return d;
+}
+function makeBack(){ const d=document.createElement('div'); d.className='card back';
+  d.innerHTML='<div class="bk">◈</div>'; d.style.margin='0 -12px'; return d; }
+function shortFx(c){ return ({freeze:'❄ Freeze + ATK-500',burn2000:'☄ 2000 DMG',heal3000:'💚 Heal 3000',
+  buff1000:'⚡ ATK +1000',weaken:'🎯 ATK ÷2',retreat:'↩ ส่งกลับ Deck'})[c.effect]||''; }
 
-function makeCard(c, inHand){
-  const d=document.createElement('div');
-  d.className='card'; d.style.setProperty('--el', EL[c.el].c);
-  d.dataset.uid=c.uid;
-  let inner=`<div class="art">${c.art}</div><div class="type-band"></div>`;
-  inner+=`<div class="elem">${EL[c.el].i}</div>`;
-  if(c.t==='monster'){
-    inner+=`<div class="cv">${c.cv}</div>`;
-    inner+=`<div class="name">${c.name}</div>`;
-    inner+=`<div class="stats"><span class="atk">⚔${c.atk}</span><span class="hp">❤${Math.max(0,c.hp)}</span></div>`;
-  } else {
-    inner+=`<div class="kind">${c.t==='magic'?'MAGIC':'COMMAND'}</div>`;
-    inner+=`<div class="name">${c.name}</div>`;
-    inner+=`<div class="fx">${shortFx(c)}</div>`;
-  }
-  d.innerHTML=inner;
-  return d;
-}
-function shortFx(c){
-  const map={freeze:'❄ Freeze + ATK-500', burn2000:'☄ 2000 DMG', heal3000:'💚 Heal 3000',
-    buff1000:'⚡ ATK +1000', weaken:'🎯 ATK ÷2', retreat:'↩ ส่งกลับ Deck'};
-  return map[c.effect]||c.desc||'';
-}
-
-// ---- fx helpers ----
-function zoneCardEl(k,zi){
-  const slot=sideEl(k).querySelector(`[data-mzone="${zi}"]`);
-  return slot?slot.querySelector('.card'):null;
-}
+/* ---------------- FX ---------------- */
+function zoneCardEl(k,zi){ const s=domSide(k).querySelector(`[data-mzone="${zi}"]`); return s?s.querySelector('.card'):null; }
 function centerOf(el){const r=el.getBoundingClientRect();return {x:r.left+r.width/2,y:r.top+r.height/2};}
-function sparkBetween(a,b){
-  if(!a||!b) return;
-  const pa=centerOf(a), pb=centerOf(b);
-  for(let i=0;i<8;i++){
-    const s=document.createElement('div'); s.className='spark';
-    const t=i/8; s.style.left=(pa.x+(pb.x-pa.x)*t)+'px'; s.style.top=(pa.y+(pb.y-pa.y)*t)+'px';
-    s.style.animationDelay=(i*20)+'ms';
-    document.getElementById('fxLayer').appendChild(s);
-    setTimeout(()=>s.remove(),700+i*20);
-  }
-  b.animate([{transform:'scale(1)'},{transform:'scale(.9) translateX(4px)'},{transform:'scale(1)'}],{duration:260});
-}
-function floatDmg(el,dmg){
-  const p=centerOf(el); const d=document.createElement('div'); d.className='float-dmg';
+function sparkBetween(a,b){ if(!a||!b)return; const pa=centerOf(a),pb=centerOf(b);
+  for(let i=0;i<8;i++){ const s=document.createElement('div'); s.className='spark'; const t=i/8;
+    s.style.left=(pa.x+(pb.x-pa.x)*t)+'px'; s.style.top=(pa.y+(pb.y-pa.y)*t)+'px'; s.style.animationDelay=(i*20)+'ms';
+    document.getElementById('fxLayer').appendChild(s); setTimeout(()=>s.remove(),700+i*20); }
+  b.animate([{transform:'scale(1)'},{transform:'scale(.9) translateX(4px)'},{transform:'scale(1)'}],{duration:260}); }
+function floatDmg(el,dmg){ const p=centerOf(el); const d=document.createElement('div'); d.className='float-dmg';
   d.textContent='-'+dmg; d.style.left=p.x+'px'; d.style.top=p.y+'px';
-  document.getElementById('fxLayer').appendChild(d); setTimeout(()=>d.remove(),1000);
-}
-function crystalFly(from,to,amount){
-  if(!from||!to){ return; }
-  const pf=centerOf(from), pt=centerOf(to);
+  document.getElementById('fxLayer').appendChild(d); setTimeout(()=>d.remove(),1000); }
+function crystalFly(from,to,amount){ if(!from||!to)return; const pf=centerOf(from),pt=centerOf(to);
   const f=document.createElement('div'); f.className='cryst-fly'; f.textContent='💎';
-  f.style.left=pf.x+'px'; f.style.top=pf.y+'px';
-  document.getElementById('fxLayer').appendChild(f);
+  f.style.left=pf.x+'px'; f.style.top=pf.y+'px'; document.getElementById('fxLayer').appendChild(f);
   f.animate([{left:pf.x+'px',top:pf.y+'px',opacity:1,transform:'scale(1)'},
-    {left:pt.x+'px',top:pt.y+'px',opacity:0,transform:'scale(1.6)'}],
-    {duration:800,easing:'cubic-bezier(.4,0,.2,1)'});
-  setTimeout(()=>{f.remove(); to.classList.add('glow'); setTimeout(()=>to.classList.remove('glow'),500);},780);
-}
-function toast(el,name,fx){
-  const t=document.getElementById('toast');
-  t.querySelector('.t-el').textContent=el;
-  t.querySelector('.t-name').textContent=name;
-  t.querySelector('.t-fx').textContent=fx;
-  t.classList.add('show');
-  clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.remove('show'),1400);
-}
-// ---- log / hint ----
-function log(html){
-  const l=document.getElementById('log'); const d=document.createElement('div'); d.innerHTML=html;
-  l.prepend(d); while(l.children.length>6) l.removeChild(l.lastChild);
-}
+    {left:pt.x+'px',top:pt.y+'px',opacity:0,transform:'scale(1.6)'}],{duration:800,easing:'cubic-bezier(.4,0,.2,1)'});
+  setTimeout(()=>{f.remove(); to.classList.add('glow'); setTimeout(()=>to.classList.remove('glow'),500);},780); }
+function toast(el,name,fx){ const t=document.getElementById('toast');
+  t.querySelector('.t-el').textContent=el; t.querySelector('.t-name').textContent=name; t.querySelector('.t-fx').textContent=fx;
+  t.classList.add('show'); clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.remove('show'),1400); }
+function log(html){ const l=document.getElementById('log'); const d=document.createElement('div'); d.innerHTML=html;
+  l.prepend(d); while(l.children.length>6) l.removeChild(l.lastChild); }
 function clearLog(){document.getElementById('log').innerHTML='';}
-function hint(txt){const h=document.getElementById('hint'); h.textContent=txt; h.classList.add('show');}
+function hint(txt){ if(!canControl(G.turn))return; const h=document.getElementById('hint'); h.textContent=txt; h.classList.add('show'); }
 function hideHint(){document.getElementById('hint').classList.remove('show');}
 
-// ---- boot ----
-document.getElementById('startBtn').onclick=()=>{
-  document.getElementById('start').style.display='none';
+/* ---------------- screens / navigation ---------------- */
+const scMode=document.getElementById('scMode'), scOnline=document.getElementById('scOnline');
+function showTable(){
+  scMode.classList.add('hidden'); scOnline.classList.add('hidden');
   document.getElementById('table').classList.add('on');
-  newGame();
+}
+function backToMenu(){
+  if(peer){ try{peer.destroy();}catch(e){} peer=null; conn=null; }
+  G.online=false; G.myKey=null;
+  document.getElementById('table').classList.remove('on');
+  document.getElementById('victory').classList.remove('show');
+  document.getElementById('netstatus').classList.remove('show');
+  scOnline.classList.add('hidden');
+  document.getElementById('hostPanel').classList.add('hidden');
+  document.getElementById('joinPanel').classList.add('hidden');
+  document.getElementById('onlineChoices').classList.remove('hidden');
+  scMode.classList.remove('hidden');
+}
+function netStatus(txt,cls){ const n=document.getElementById('netstatus');
+  n.textContent=txt; n.className='show'; if(cls)n.classList.add(cls); }
+
+document.getElementById('pickOffline').onclick=()=>{ G.online=false; G.myKey=null; showTable(); newGame(); };
+document.getElementById('pickOnline').onclick=()=>{
+  if(typeof Peer==='undefined'){ scMode.classList.add('hidden'); scOnline.classList.remove('hidden');
+    document.getElementById('onlineChoices').classList.add('hidden');
+    document.getElementById('onlineNote').innerHTML='<span class="err">โหลดไลบรารีออนไลน์ไม่สำเร็จ — ต้องเปิดผ่าน URL จริง (server) ไม่ใช่พรีวิว</span>';
+    return;
+  }
+  scMode.classList.add('hidden'); scOnline.classList.remove('hidden');
 };
-document.getElementById('againBtn').onclick=()=>{ newGame(); };
-// esc / right-click cancels
+document.getElementById('onlineBack').onclick=backToMenu;
+document.getElementById('againBtn').onclick=()=>{ if(G.online && conn && conn.open){ /* host restarts */ } backToMenu(); };
+
+/* ---------------- PeerJS: HOST ---------------- */
+function makeCode(){ const ch='ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let s='';
+  for(let i=0;i<6;i++) s+=ch[Math.floor(Math.random()*ch.length)]; return s; }
+document.getElementById('pickHost').onclick=()=>{
+  document.getElementById('onlineChoices').classList.add('hidden');
+  document.getElementById('hostPanel').classList.remove('hidden');
+  const code=makeCode();
+  document.getElementById('roomCode').textContent=code.split('').join(' ');
+  const hostMsg=document.getElementById('hostMsg');
+  try{
+    peer=new Peer('crystalment-'+code);
+    peer.on('open',()=>{ hostMsg.innerHTML='<span class="spinner"></span>รอผู้เล่นอีกฝ่ายเข้าร่วม...'; });
+    peer.on('connection',c=>{
+      conn=c; setupConn();
+      c.on('open',()=>{
+        G.online=true; G.myKey='a'; showTable(); newGame();
+        conn.send({type:'init', state:serializeState()});
+        netStatus('🟢 ออนไลน์ · เธอคือ PLAYER A');
+      });
+    });
+    peer.on('error',e=>{ hostMsg.className='netmsg err';
+      hostMsg.textContent = e.type==='unavailable-id' ? 'รหัสซ้ำ ลองสร้างใหม่' : 'เชื่อมต่อไม่สำเร็จ: '+e.type; });
+  }catch(e){ hostMsg.className='netmsg err'; hostMsg.textContent='เปิดห้องไม่สำเร็จ'; }
+};
+document.getElementById('roomCode').onclick=function(){
+  const code=this.textContent.replace(/\s/g,'');
+  if(navigator.clipboard){ navigator.clipboard.writeText(code).then(()=>{
+    const m=document.getElementById('hostMsg'); const o=m.innerHTML; m.innerHTML='📋 คัดลอกรหัสแล้ว';
+    setTimeout(()=>m.innerHTML=o,1200); }); }
+};
+
+/* ---------------- PeerJS: JOIN ---------------- */
+document.getElementById('pickJoin').onclick=()=>{
+  document.getElementById('onlineChoices').classList.add('hidden');
+  document.getElementById('joinPanel').classList.remove('hidden');
+  document.getElementById('joinCode').focus();
+};
+document.getElementById('joinConnect').onclick=joinRoom;
+document.getElementById('joinCode').addEventListener('keydown',e=>{ if(e.key==='Enter') joinRoom(); });
+function joinRoom(){
+  const code=document.getElementById('joinCode').value.trim().toUpperCase();
+  const jm=document.getElementById('joinMsg');
+  if(code.length<4){ jm.className='netmsg err'; jm.textContent='ใส่รหัสให้ครบ'; return; }
+  jm.className='netmsg'; jm.innerHTML='<span class="spinner"></span>กำลังเชื่อมต่อ...';
+  try{
+    peer=new Peer();
+    peer.on('open',()=>{
+      conn=peer.connect('crystalment-'+code,{reliable:true});
+      setupConn();
+      conn.on('open',()=>{ jm.className='netmsg ok'; jm.textContent='เชื่อมต่อสำเร็จ! รอเริ่มเกม...'; });
+    });
+    peer.on('error',e=>{ jm.className='netmsg err';
+      jm.textContent = (e.type==='peer-unavailable') ? 'ไม่พบห้องนี้ ตรวจรหัสอีกครั้ง' : 'เชื่อมต่อไม่สำเร็จ: '+e.type; });
+  }catch(e){ jm.className='netmsg err'; jm.textContent='เชื่อมต่อไม่สำเร็จ'; }
+}
+
+/* ---------------- connection message handling ---------------- */
+function setupConn(){
+  conn.on('data', onMsg);
+  conn.on('close', ()=>{ if(!G.over){ netStatus('🔴 การเชื่อมต่อหลุด','err');
+    toast('⚠️','การเชื่อมต่อหลุด','กลับสู่เมนู'); setTimeout(backToMenu,1600); } });
+}
+function onMsg(m){
+  if(!m||!m.type) return;
+  if(m.type==='init'){                       // guest receives initial state
+    G.online=true; G.myKey='b'; restoreState(m.state);
+    showTable(); netStatus('🟢 ออนไลน์ · เธอคือ PLAYER B'); renderAll();
+  } else if(m.type==='act'){                  // replicate opponent action
+    applyAction(m.name, m.args);
+  }
+}
+function serializeState(){ return JSON.stringify({players:G.players,turn:G.turn,phase:G.phase,over:G.over}); }
+function restoreState(str){ const s=JSON.parse(str);
+  G.players=s.players; G.turn=s.turn; G.phase=s.phase; G.over=s.over;
+  G.selectedHand=null; G.selectedAttacker=null; G.targetMode=null;
+  $('[data-turnwho]').textContent=G.players[G.turn].name+' TURN';
+  $('[data-turnwho]').style.color=G.turn==='a'?'#7ce0ff':'#ffb27c';
+  $('[data-turnphase]').textContent='Main Phase · เล่นการ์ด แล้ว End Turn';
+}
+
+/* cancel shortcuts */
 document.addEventListener('contextmenu',e=>{ if(G.selectedHand||G.selectedAttacker){e.preventDefault(); cancelSelection();}});
 document.addEventListener('keydown',e=>{ if(e.key==='Escape') cancelSelection(); });
 </script>
