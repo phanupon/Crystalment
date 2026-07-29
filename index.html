@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Kanit:wght@300;400;600;700&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/128/three.min.js"></script>
 <style>
   :root{
     --void:#050810; --void2:#0a1120; --panel:#0b1424; --panel2:#101d33;
@@ -23,6 +24,10 @@
 
   /* ---------- DYNAMIC BACKGROUND: MAP + WEATHER ---------- */
   #bgLayer{position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none;background:var(--void)}
+  #three-bg{position:fixed;inset:0;z-index:0;display:none;pointer-events:none}
+  #mapFade{position:fixed;inset:0;z-index:2;background:#000;opacity:0;pointer-events:none}
+  #mapFade.transition{animation:mapFadeAnim .5s ease}
+  @keyframes mapFadeAnim{0%{opacity:0}45%{opacity:.9}55%{opacity:.9}100%{opacity:0}}
   .bgmap{position:absolute;inset:0;opacity:0;transition:opacity 1.6s ease}
   .bgmap.active{opacity:1}
   /* Volcano */
@@ -410,6 +415,8 @@
   <div class="bgweather" data-weather="fog"></div>
   <div class="bgweather" data-weather="thunder"></div>
 </div>
+<canvas id="three-bg"></canvas>
+<div id="mapFade"></div>
 <div id="thunderFlash"></div>
 
 <div id="htpBtn"><span>📖</span><span class="lbl">วิธีเล่น</span></div>
@@ -735,6 +742,329 @@ function playDestroySound(){
   noiseBurst(t, 0.06, 0.15, 2500);
 }
 
+/* ==================================================================
+   3D ENVIRONMENT — Three.js (r128, CDN)
+   ธีม: Volcano / Frozen Valley / Forest (Map) · Rain/Thunder/Fog (Weather)
+   · Dragon Boss (หน้าเปิดเกม) — ทั้งหมดสร้างจาก primitive geometry +
+   emissive material + particle points (ไม่พึ่งไฟล์ texture ภายนอก)
+   ถ้า WebGL/Three.js ใช้ไม่ได้ จะ fallback กลับไปพื้นหลัง CSS เดิมทันที
+   ================================================================== */
+let three3D=null;
+const BIOME_FOG = {
+  volcano:{color:0x1a0805, density:0.032},
+  frozen: {color:0x0a1b2e, density:0.028},
+  forest: {color:0x05100a, density:0.034},
+};
+const WEATHER_FOG_MULT = {clear:1, rain:1.3, fog:2.6, thunder:1.15};
+const WEATHER_AMBIENT_TINT = {clear:0x223344, rain:0x1c2a44, fog:0x2a3040, thunder:0x2a1f44};
+
+function makeSoftDiscTexture(){
+  const c=document.createElement('canvas'); c.width=64; c.height=64;
+  const ctx=c.getContext('2d');
+  const g=ctx.createRadialGradient(32,32,0,32,32,32);
+  g.addColorStop(0,'rgba(255,255,255,1)'); g.addColorStop(.4,'rgba(255,255,255,.7)'); g.addColorStop(1,'rgba(255,255,255,0)');
+  ctx.fillStyle=g; ctx.fillRect(0,0,64,64);
+  return new THREE.CanvasTexture(c);
+}
+
+function buildParticles(count, color, spreadXZ, heightRange, sizeMin, sizeMax, additive){
+  const geo=new THREE.BufferGeometry();
+  const pos=new Float32Array(count*3);
+  const speeds=new Float32Array(count);
+  for(let i=0;i<count;i++){
+    pos[i*3]=(Math.random()-0.5)*spreadXZ;
+    pos[i*3+1]=Math.random()*heightRange;
+    pos[i*3+2]=(Math.random()-0.5)*spreadXZ - 4;
+    speeds[i]=sizeMin+Math.random()*(sizeMax-sizeMin);
+  }
+  geo.setAttribute('position', new THREE.BufferAttribute(pos,3));
+  const mat=new THREE.PointsMaterial({
+    color, size:0.35, map:makeSoftDiscTexture(), transparent:true, depthWrite:false,
+    blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending, opacity:additive?0.9:0.35,
+  });
+  const pts=new THREE.Points(geo,mat);
+  pts.userData={speeds, heightRange, spreadXZ};
+  return pts;
+}
+function updateRisingParticles(pts, dt, speedMul){
+  const pos=pts.geometry.attributes.position; const {speeds,heightRange}=pts.userData;
+  for(let i=0;i<pos.count;i++){
+    let y=pos.getY(i) + dt*(0.4+speeds[i]*speedMul);
+    if(y>heightRange) y=0;
+    pos.setY(i,y);
+  }
+  pos.needsUpdate=true;
+}
+
+/* ---- Biome: Volcano ---- */
+function buildVolcanoScene(){
+  const g=new THREE.Group();
+  const ground=new THREE.Mesh(new THREE.CircleGeometry(40,28),
+    new THREE.MeshStandardMaterial({color:0x140705, roughness:1}));
+  ground.rotation.x=-Math.PI/2; g.add(ground);
+  for(let i=0;i<14;i++){
+    const a=(i/14)*Math.PI*2, r=17+Math.random()*9, h=6+Math.random()*10;
+    const cone=new THREE.Mesh(new THREE.ConeGeometry(3+Math.random()*2,h,5),
+      new THREE.MeshStandardMaterial({color:0x120604, roughness:1}));
+    cone.position.set(Math.cos(a)*r, h/2, Math.sin(a)*r-2);
+    cone.rotation.y=Math.random()*Math.PI;
+    g.add(cone);
+  }
+  const lavaSpots=[];
+  for(let i=0;i<5;i++){
+    const mat=new THREE.MeshStandardMaterial({color:0xff5a3c, emissive:0xff6a2a, emissiveIntensity:1.6, roughness:.4});
+    const lava=new THREE.Mesh(new THREE.CircleGeometry(1.4+Math.random()*1.8,16), mat);
+    lava.rotation.x=-Math.PI/2; lava.position.set((Math.random()-0.5)*13, 0.03, (Math.random()-0.5)*12-4);
+    g.add(lava); lavaSpots.push(lava);
+  }
+  const embers=buildParticles(120, 0xff9a5a, 22, 9, 0.4, 1.2, true);
+  g.add(embers);
+  const smoke=buildParticles(40, 0x777777, 18, 12, 0.15, 0.35, false);
+  g.add(smoke);
+  const glow=new THREE.PointLight(0xff6a30, 2.4, 30); glow.position.set(0,2,-2); g.add(glow);
+  g.userData={lavaSpots, embers, smoke, glow, type:'volcano'};
+  return g;
+}
+/* ---- Biome: Frozen Valley ---- */
+function buildFrozenScene(){
+  const g=new THREE.Group();
+  const ground=new THREE.Mesh(new THREE.CircleGeometry(40,28),
+    new THREE.MeshStandardMaterial({color:0x0a1522, roughness:.8}));
+  ground.rotation.x=-Math.PI/2; g.add(ground);
+  for(let i=0;i<12;i++){
+    const a=(i/12)*Math.PI*2, r=16+Math.random()*10, h=7+Math.random()*9;
+    const peak=new THREE.Mesh(new THREE.ConeGeometry(2.6+Math.random()*1.6,h,5),
+      new THREE.MeshStandardMaterial({color:0xcfe9f2, emissive:0x2a5570, emissiveIntensity:.35, roughness:.6}));
+    peak.position.set(Math.cos(a)*r, h/2, Math.sin(a)*r-2);
+    peak.rotation.y=Math.random()*Math.PI;
+    g.add(peak);
+  }
+  const auroraMat=new THREE.MeshBasicMaterial({color:0x8ff6e0, transparent:true, opacity:.16, side:THREE.DoubleSide, depthWrite:false});
+  const aurora=new THREE.Mesh(new THREE.PlaneGeometry(46,10,1,1), auroraMat);
+  aurora.position.set(0,14,-18); g.add(aurora);
+  const frost=buildParticles(110, 0xcdeeff, 22, 9, 0.3, 0.9, true);
+  g.add(frost);
+  const glow=new THREE.PointLight(0x6fd0ff, 1.6, 30); glow.position.set(0,3,-2); g.add(glow);
+  g.userData={aurora, frost, glow, type:'frozen'};
+  return g;
+}
+/* ---- Biome: Forest ---- */
+function buildTree(){
+  const t=new THREE.Group();
+  const bark=new THREE.MeshStandardMaterial({color:0x120e08, roughness:1});
+  const trunkH=3+Math.random()*2.5;
+  const trunk=new THREE.Mesh(new THREE.CylinderGeometry(.18,.32,trunkH,5), bark);
+  trunk.position.y=trunkH/2; trunk.rotation.z=(Math.random()-0.5)*0.2; t.add(trunk);
+  const branches=3+Math.floor(Math.random()*3);
+  for(let i=0;i<branches;i++){
+    const bl=1+Math.random()*1.6;
+    const br=new THREE.Mesh(new THREE.CylinderGeometry(.05,.12,bl,4), bark);
+    br.position.set(0, trunkH*(0.55+Math.random()*0.4), 0);
+    br.rotation.z=(Math.random()-0.5)*1.6; br.rotation.y=Math.random()*Math.PI*2;
+    br.translateY(bl/2);
+    t.add(br);
+  }
+  return t;
+}
+function buildForestScene(){
+  const g=new THREE.Group();
+  const ground=new THREE.Mesh(new THREE.CircleGeometry(40,28),
+    new THREE.MeshStandardMaterial({color:0x04100a, roughness:1}));
+  ground.rotation.x=-Math.PI/2; g.add(ground);
+  for(let i=0;i<16;i++){
+    const a=Math.random()*Math.PI*2, r=6+Math.random()*20;
+    const tree=buildTree();
+    tree.position.set(Math.cos(a)*r, 0, Math.sin(a)*r-4);
+    g.add(tree);
+  }
+  const altarMat=new THREE.MeshStandardMaterial({color:0x0d1a12, roughness:.8});
+  const base=new THREE.Mesh(new THREE.CylinderGeometry(1.4,1.7,.5,8), altarMat);
+  base.position.set(0,.25,-5); g.add(base);
+  const crystalMat=new THREE.MeshStandardMaterial({color:0x3dffa0, emissive:0x2dffa0, emissiveIntensity:1.8, roughness:.2});
+  const crystal=new THREE.Mesh(new THREE.OctahedronGeometry(.7,0), crystalMat);
+  crystal.position.set(0,1.6,-5); g.add(crystal);
+  const fireflies=buildParticles(90, 0x8dffb0, 20, 6, 0.25, 0.7, true);
+  g.add(fireflies);
+  const glow=new THREE.PointLight(0x4dffa0, 2, 24); glow.position.set(0,1.6,-5); g.add(glow);
+  g.userData={crystal, fireflies, glow, type:'forest'};
+  return g;
+}
+/* ---- Dragon Boss (start-screen showpiece) ---- */
+function buildDragonBoss(){
+  const g=new THREE.Group();
+  const scaleMat=new THREE.MeshStandardMaterial({color:0x2a0a0a, emissive:0x3a0a05, emissiveIntensity:.4, roughness:.65, metalness:.15});
+  const body=new THREE.Mesh(new THREE.SphereGeometry(1.5,10,8), scaleMat);
+  body.scale.set(1,.85,1.9); g.add(body);
+  const neck=new THREE.Mesh(new THREE.CylinderGeometry(.55,.85,2.2,7), scaleMat);
+  neck.position.set(0,1.1,1.9); neck.rotation.x=-0.55; g.add(neck);
+  const head=new THREE.Mesh(new THREE.ConeGeometry(.75,2,6), scaleMat);
+  head.position.set(0,2.15,3.1); head.rotation.x=Math.PI/2 - .5; g.add(head);
+  const eyeMat=new THREE.MeshStandardMaterial({color:0xff2020, emissive:0xff2222, emissiveIntensity:1.6});
+  const eyes=[-1,1].map(sx=>{
+    const e=new THREE.Mesh(new THREE.SphereGeometry(.11,8,8), eyeMat.clone());
+    e.position.set(sx*.32, 2.25, 3.55); g.add(e); return e;
+  });
+  const tailSegs=6; let tprev={x:0,y:.2,z:-1.7};
+  for(let i=0;i<tailSegs;i++){
+    const r0=.4-(i*.055), r1=.35-(i*.055);
+    const seg=new THREE.Mesh(new THREE.CylinderGeometry(Math.max(r1,.04),Math.max(r0,.05),1.1,6), scaleMat);
+    seg.position.set(0, tprev.y-i*0.12, tprev.z-i*1.0);
+    seg.rotation.x=1.35; g.add(seg);
+  }
+  const wingMat=new THREE.MeshStandardMaterial({color:0x1a0606, emissive:0x400a0a, emissiveIntensity:.3, roughness:.8, side:THREE.DoubleSide});
+  function buildWing(sign){
+    const shape=new THREE.Shape();
+    shape.moveTo(0,0); shape.lineTo(sign*2.6,1.2); shape.lineTo(sign*3.4,.2);
+    shape.lineTo(sign*2.6,-.3); shape.lineTo(sign*1.6,-1.1); shape.lineTo(sign*.6,-.6); shape.lineTo(0,0);
+    const geo=new THREE.ShapeGeometry(shape);
+    const wing=new THREE.Mesh(geo, wingMat);
+    wing.position.set(sign*.5, 1.2, 0.2);
+    return wing;
+  }
+  const wingL=buildWing(-1), wingR=buildWing(1);
+  g.add(wingL); g.add(wingR);
+  const embers=buildParticles(70, 0xffb070, 8, 6, 0.4, 1.1, true);
+  embers.position.set(0,1,1); g.add(embers);
+  const rim=new THREE.PointLight(0xff7a33, 3.2, 18); rim.position.set(0,1.5,-3); g.add(rim);
+  g.userData={eyes, wings:[wingL,wingR], embers, rim};
+  g.position.set(0,2.4,-6); g.scale.set(1.15,1.15,1.15);
+  return g;
+}
+/* ---- Rain (instanced) ---- */
+function buildRain(){
+  const count=160;
+  const geo=new THREE.BoxGeometry(0.02,0.5,0.02);
+  const mat=new THREE.MeshBasicMaterial({color:0xbcd9ff, transparent:true, opacity:.5});
+  const mesh=new THREE.InstancedMesh(geo, mat, count);
+  const data=[];
+  const dummy=new THREE.Object3D();
+  for(let i=0;i<count;i++){
+    const x=(Math.random()-0.5)*26, y=Math.random()*14, z=(Math.random()-0.5)*20-4, speed=6+Math.random()*4;
+    data.push({x,y,z,speed});
+    dummy.position.set(x,y,z); dummy.updateMatrix(); mesh.setMatrixAt(i,dummy.matrix);
+  }
+  mesh.userData={data,dummy};
+  return mesh;
+}
+function updateRain(rain,dt){
+  const {data,dummy}=rain.userData;
+  for(let i=0;i<data.length;i++){
+    const d=data[i]; d.y -= d.speed*dt; if(d.y<0) d.y=14;
+    dummy.position.set(d.x,d.y,d.z); dummy.updateMatrix(); rain.setMatrixAt(i,dummy.matrix);
+  }
+  rain.instanceMatrix.needsUpdate=true;
+}
+
+/* ---- init / lifecycle ---- */
+function init3DEnvironment(){
+  if(typeof THREE==='undefined') return false;
+  try{
+    const canvas=document.getElementById('three-bg');
+    const renderer=new THREE.WebGLRenderer({canvas, antialias:true, powerPreference:'high-performance'});
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    const scene=new THREE.Scene();
+    const camera=new THREE.PerspectiveCamera(52, window.innerWidth/window.innerHeight, 0.1, 200);
+    camera.position.set(0,5.5,15); camera.lookAt(0,2.6,-3);
+    const ambient=new THREE.AmbientLight(0x223344,0.65); scene.add(ambient);
+    const key=new THREE.DirectionalLight(0xffffff,0.35); key.position.set(6,10,4); scene.add(key);
+
+    const biomes={ volcano:buildVolcanoScene(), frozen:buildFrozenScene(), forest:buildForestScene() };
+    Object.values(biomes).forEach(g=>{ g.visible=false; scene.add(g); });
+
+    const dragon=buildDragonBoss(); scene.add(dragon);
+    const rain=buildRain(); rain.visible=false; scene.add(rain);
+    const fogMotes=buildParticles(70,0xd8e6f2,22,8,0.2,0.5,false); fogMotes.visible=false; scene.add(fogMotes);
+    const thunderLight=new THREE.PointLight(0xcfe0ff,0,60); thunderLight.position.set(0,14,0); scene.add(thunderLight);
+
+    three3D={renderer,scene,camera,ambient,key,biomes,dragon,rain,fogMotes,thunderLight,
+      clock:new THREE.Clock(), activeMap:null, running:true, thunderPulse:null};
+
+    window.addEventListener('resize', onThreeResize);
+    document.addEventListener('visibilitychange', ()=>{
+      if(!three3D) return;
+      three3D.running = document.visibilityState==='visible';
+      if(three3D.running) animate3D();
+    });
+    animate3D();
+    document.getElementById('bgLayer').style.display='none';
+    canvas.style.display='block';
+    return true;
+  }catch(e){
+    console.warn('Three.js 3D environment init failed — fallback to CSS background:', e);
+    three3D=null; return false;
+  }
+}
+function onThreeResize(){
+  if(!three3D) return;
+  const {renderer,camera}=three3D;
+  camera.aspect=window.innerWidth/window.innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+}
+function recomputeFog3D(){
+  if(!three3D) return;
+  const base=BIOME_FOG[currentMap]||BIOME_FOG.volcano;
+  const mult=WEATHER_FOG_MULT[currentWeather]||1;
+  if(!three3D.scene.fog) three3D.scene.fog=new THREE.FogExp2(base.color, base.density*mult);
+  else { three3D.scene.fog.color.setHex(base.color); three3D.scene.fog.density=base.density*mult; }
+  three3D.renderer.setClearColor(base.color,1);
+  three3D.ambient.color.setHex(WEATHER_AMBIENT_TINT[currentWeather]||0x223344);
+}
+function show3DBiome(map){
+  if(!three3D) return;
+  const el=document.getElementById('mapFade');
+  el.classList.remove('transition'); void el.offsetWidth; el.classList.add('transition');
+  setTimeout(()=>{
+    if(!three3D) return;
+    Object.entries(three3D.biomes).forEach(([name,g])=>{ g.visible=(name===map); });
+    three3D.activeMap=map; recomputeFog3D();
+  }, 250);
+}
+function apply3DWeather(w){
+  if(!three3D) return;
+  three3D.rain.visible=(w==='rain');
+  three3D.fogMotes.visible=(w==='fog');
+  if(w==='thunder') three3D.thunderPulse={start:three3D.clock.elapsedTime, duration:0.55};
+  recomputeFog3D();
+}
+function clear3DWeather(){
+  if(!three3D) return;
+  three3D.rain.visible=false; three3D.fogMotes.visible=false; recomputeFog3D();
+}
+function animate3D(){
+  if(!three3D || !three3D.running) return;
+  requestAnimationFrame(animate3D);
+  const dt=Math.min(three3D.clock.getDelta(),0.1); const t=three3D.clock.elapsedTime;
+  const dragon=three3D.dragon;
+  if(dragon && dragon.visible){
+    dragon.position.y=2.4+Math.sin(t*0.9)*0.22;
+    dragon.rotation.y=Math.sin(t*0.22)*0.12;
+    dragon.userData.eyes.forEach(e=>{ e.material.emissiveIntensity=1.5+Math.sin(t*3.1)*0.5; });
+    dragon.userData.wings.forEach((w,i)=>{ w.rotation.z=(i===0?-1:1)*0.15*Math.sin(t*1.6+i); });
+    if(dragon.userData.embers) updateRisingParticles(dragon.userData.embers, dt, 1.4);
+  }
+  const activeBiome=three3D.activeMap ? three3D.biomes[three3D.activeMap] : null;
+  if(activeBiome && activeBiome.visible){
+    const u=activeBiome.userData;
+    if(u.lavaSpots) u.lavaSpots.forEach((l,i)=>{ l.material.emissiveIntensity=1.3+Math.sin(t*2+i)*0.5; });
+    if(u.embers) updateRisingParticles(u.embers, dt, 1.2);
+    if(u.smoke) updateRisingParticles(u.smoke, dt, 0.5);
+    if(u.frost) updateRisingParticles(u.frost, dt, 0.8);
+    if(u.fireflies) updateRisingParticles(u.fireflies, dt, 0.6);
+    if(u.crystal) u.crystal.rotation.y+=dt*0.6;
+    if(u.aurora) u.aurora.position.x=Math.sin(t*0.15)*3;
+    if(u.glow) u.glow.intensity = (u.type==='volcano'?2.4:u.type==='frozen'?1.6:2) + Math.sin(t*1.5)*0.25;
+  }
+  if(three3D.rain.visible) updateRain(three3D.rain, dt);
+  if(three3D.fogMotes.visible) updateRisingParticles(three3D.fogMotes, dt, 0.35);
+  if(three3D.thunderPulse){
+    const el=t-three3D.thunderPulse.start, d=three3D.thunderPulse.duration;
+    if(el>d){ three3D.thunderLight.intensity=0; three3D.thunderPulse=null; }
+    else{ const env=Math.sin((el/d)*Math.PI); three3D.thunderLight.intensity=env*9; }
+  }
+  three3D.renderer.render(three3D.scene, three3D.camera);
+}
+
 const $ = s=>document.querySelector(s);
 const sideEl = k => document.getElementById(k==='a'?'sideA':'sideB');
 const opp = k => k==='a'?'b':'a';
@@ -759,12 +1089,14 @@ let currentMap=null, currentWeather='clear';
 function randomMap(){ return MAP_LIST[Math.floor(Math.random()*MAP_LIST.length)]; }
 function setMap(map){
   if(!map||map===currentMap) return; currentMap=map;
-  document.querySelectorAll('.bgmap').forEach(el=>el.classList.toggle('active', el.dataset.map===map));
+  if(three3D) show3DBiome(map);
+  else document.querySelectorAll('.bgmap').forEach(el=>el.classList.toggle('active', el.dataset.map===map));
   updateEnvBadge();
 }
 function setWeather(w){
   if(!w) return; currentWeather=w;
-  document.querySelectorAll('.bgweather').forEach(el=>el.classList.toggle('active', el.dataset.weather===w));
+  if(three3D) apply3DWeather(w);
+  else document.querySelectorAll('.bgweather').forEach(el=>el.classList.toggle('active', el.dataset.weather===w));
   if(w==='thunder') triggerThunderFlash();
   updateEnvBadge();
   clearTimeout(window._weatherTimer);
@@ -772,7 +1104,8 @@ function setWeather(w){
 }
 function clearWeather(){
   currentWeather='clear';
-  document.querySelectorAll('.bgweather').forEach(el=>el.classList.remove('active'));
+  if(three3D) clear3DWeather();
+  else document.querySelectorAll('.bgweather').forEach(el=>el.classList.remove('active'));
   updateEnvBadge();
 }
 function triggerThunderFlash(){
@@ -1170,6 +1503,7 @@ const scMode=document.getElementById('scMode'), scOnline=document.getElementById
 function showTable(){
   scMode.classList.add('hidden'); scOnline.classList.add('hidden');
   document.getElementById('table').classList.add('on');
+  if(three3D && three3D.dragon) three3D.dragon.visible=false;
 }
 function backToMenu(){
   if(typeof destroyPeer==='function') destroyPeer(); else { if(peer){try{peer.destroy();}catch(e){}} peer=null; conn=null; }
@@ -1184,6 +1518,7 @@ function backToMenu(){
   if(hrr) hrr.classList.add('hidden'); if(jrr) jrr.classList.add('hidden');
   document.getElementById('onlineChoices').classList.remove('hidden');
   scMode.classList.remove('hidden');
+  if(three3D && three3D.dragon) three3D.dragon.visible=true;
 }
 function netStatus(txt,cls){ const n=document.getElementById('netstatus');
   n.textContent=txt; n.className='show'; if(cls)n.classList.add(cls); }
@@ -1376,6 +1711,12 @@ document.addEventListener('keydown',e=>{
     if(htp.classList.contains('show')) closeHTP(); else cancelSelection();
   }
 });
+
+/* ---------------- boot: 3D environment (fallback ไป CSS อัตโนมัติถ้าไม่พร้อม) ---------------- */
+(function boot3D(){
+  const ok=init3DEnvironment();
+  if(ok) setMap('volcano'); // ฉากตั้งต้นตอนหน้าแรก + มังกรบอสโชว์อยู่แล้ว
+})();
 </script>
 </body>
 </html>
