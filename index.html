@@ -501,6 +501,10 @@
       <div class="ic">🎴</div><h3>เล่นในเครื่องนี้</h3>
       <p>โหมด Offline / Hotseat — สองคนนั่งคนละฝั่งของจอเดียว สลับกันเล่น</p>
     </div>
+    <div class="choice" id="pickAI">
+      <div class="ic">🤖</div><h3>เล่นกับ AI</h3>
+      <p>เธอเป็น Player A ต่อกรกับ AI ที่เป็น Player B คิดเองทั้งอัญเชิญ ใช้เวท และโจมตี</p>
+    </div>
     <div class="choice" id="pickOnline">
       <div class="ic">🌐</div><h3>เล่นออนไลน์</h3>
       <p>เล่นข้ามเครื่อง/มือถือคนละเครื่อง สร้างห้องหรือใส่รหัสเข้าร่วม เห็นตัวเองอยู่ล่างเสมอ</p>
@@ -684,7 +688,7 @@ const G = {
   },
   turn:'a', phase:'idle', over:false, turnCount:0,
   selectedHand:null, selectedAttacker:null, targetMode:null,
-  online:false, myKey:null,
+  online:false, myKey:null, aiMode:false,
 };
 let peer=null, conn=null;
 
@@ -737,7 +741,9 @@ const opp = k => k==='a'?'b':'a';
 // DOM position for a data key: local player (myKey / offline 'a') sits at bottom (sideA DOM)
 const bottomKey = () => G.online ? G.myKey : 'a';
 const domSide = dataKey => sideEl(dataKey===bottomKey() ? 'a' : 'b');
-const canControl = k => !G.over && G.turn===k && (!G.online || G.myKey===k);
+const canControl = k => !G.over && G.turn===k && (!G.online || G.myKey===k) && !(G.aiMode && k==='b');
+// ฝ่ายที่เป็น "มนุษย์ในเครื่องนี้" (เห็นการ์ดในมือหงายหน้า): AI mode=เฉพาะ a, online=เฉพาะ myKey, offline hotseat=ทั้งคู่
+const isLocalHuman = dataKey => G.aiMode ? dataKey==='a' : (G.online ? dataKey===G.myKey : true);
 
 /* ---------------- ENVIRONMENT: dynamic map + weather ----------------
    แผนที่: เปลี่ยนทุก 2 เทิร์นแบบสุ่ม หรือทันทีตามธาตุมอนสเตอร์ที่อัญเชิญ
@@ -782,6 +788,7 @@ function updateEnvBadge(){
 function newGame(){
   G.over=false; G.turn='a'; G.phase='idle'; G.turnCount=0;
   G.selectedHand=null; G.selectedAttacker=null; G.targetMode=null;
+  G.players.b.name = G.aiMode ? 'AI OPPONENT' : 'PLAYER B';
   for(const k of ['a','b']){
     const p=G.players[k];
     p.deck=buildDeck(); p.hand=[]; p.mzones=[null,null,null]; p.mgzone=null; p.drop=0; p.crystal=0;
@@ -804,6 +811,7 @@ function startTurn(k){
   $('[data-turnwho]').style.color = k==='a' ? '#7ce0ff':'#ffb27c';
   $('[data-turnphase]').textContent='Main Phase · เล่นการ์ด แล้ว End Turn';
   renderAll();
+  if(G.aiMode && k==='b' && !G.over) setTimeout(aiDoSummon, 750);
 }
 
 /* ---------------- action dispatch (offline + online replicated) ---------------- */
@@ -906,6 +914,97 @@ function winGame(k){
   setTimeout(()=>document.getElementById('victory').classList.add('show'),700);
 }
 
+/* ---------------- AI (Player B) — heuristic, ไม่ใช่ ML ---------------- */
+/* ลำดับการตัดสินใจต่อเทิร์น: 1) อัญเชิญมอนสเตอร์แรงสุดในมือถ้ามีช่องว่าง
+   2) ใช้เวท/คำสั่งอย่างมีเหตุผล (รักษาตัวเอง > จบเกมด้วยดาเมจ > แช่แข็งตัวอันตราย > บัฟ/ลด ATK)
+   3) โจมตีด้วยมอนสเตอร์ที่พร้อมทุกตัว เลือกเป้าที่ทำลายได้ก่อน (เลี่ยง Frost Guardian ถ้าฆ่าไม่ได้)
+   4) จบเทิร์น — แต่ละขั้นหน่วงเวลาให้ดูเหมือนกำลังคิด ------------------------- */
+function aiDoSummon(){
+  if(G.over || !G.aiMode || G.turn!=='b'){ return; }
+  const p=G.players.b;
+  const emptyZone=p.mzones.findIndex(z=>!z);
+  const monsterCard=p.hand.filter(c=>c.t==='monster').sort((a,b)=>b.atk-a.atk)[0];
+  if(emptyZone!==-1 && monsterCard) doAction('summon',['b', monsterCard.uid, emptyZone]);
+  setTimeout(aiDoMagic, 750);
+}
+function aiDoMagic(){
+  if(G.over || !G.aiMode || G.turn!=='b'){ return; }
+  const p=G.players.b, o=G.players.a;
+  const magicCards=p.hand.filter(c=>c.t==='magic');
+  const cmdCards=p.hand.filter(c=>c.t==='command');
+  let used=false;
+  // 1) รักษาตัวเองที่ HP ต่ำสุดถ้ามีเวทรักษา
+  const heal=magicCards.find(c=>c.effect==='heal3000');
+  if(!used && heal){
+    const hurt=p.mzones.map((m,i)=>({m,i})).filter(x=>x.m && x.m.hp<x.m.maxhp).sort((a,b)=>a.m.hp-b.m.hp)[0];
+    if(hurt){ doAction('magicAlly',['b',heal.uid,hurt.i]); used=true; }
+  }
+  // 2) จบตัวศัตรูด้วยดาเมจถ้าฆ่าได้ (เลือก CV สูงสุดที่ฆ่าได้)
+  if(!used){
+    const burn=magicCards.find(c=>c.effect==='burn2000');
+    if(burn){
+      const killable=o.mzones.map((m,i)=>({m,i})).filter(x=>x.m && x.m.hp<=2000).sort((a,b)=>b.m.cv-a.m.cv)[0];
+      if(killable){ doAction('magicEnemy',['b',burn.uid,killable.i]); used=true; }
+    }
+  }
+  // 3) แช่แข็งตัวที่ ATK สูงอันตราย
+  if(!used){
+    const freeze=magicCards.find(c=>c.effect==='freeze');
+    if(freeze){
+      const threat=o.mzones.map((m,i)=>({m,i})).filter(x=>x.m && x.m.frozen===0).sort((a,b)=>b.m.atk-a.m.atk)[0];
+      if(threat && threat.m.atk>=1800){ doAction('magicEnemy',['b',freeze.uid,threat.i]); used=true; }
+    }
+  }
+  // 4) บัฟตัวเองที่พร้อมโจมตีให้แรงขึ้นก่อนบุก
+  if(!used){
+    const buff=magicCards.find(c=>c.effect==='buff1000');
+    if(buff){
+      const attacker=p.mzones.map((m,i)=>({m,i})).filter(x=>x.m && !x.m.exhausted && x.m.frozen===0).sort((a,b)=>b.m.atk-a.m.atk)[0];
+      if(attacker){ doAction('magicAlly',['b',buff.uid,attacker.i]); used=true; }
+    }
+  }
+  // 5) ลด ATK ตัวอันตรายของศัตรูด้วยคำสั่ง
+  if(!used){
+    const weaken=cmdCards.find(c=>c.effect==='weaken');
+    if(weaken){
+      const threat=o.mzones.map((m,i)=>({m,i})).filter(x=>x.m).sort((a,b)=>b.m.atk-a.m.atk)[0];
+      if(threat && threat.m.atk>=2000){ doAction('command',['b',weaken.uid,threat.i]); used=true; }
+    }
+  }
+  setTimeout(aiDoAttacks, 750);
+}
+function aiPickTarget(atkM){
+  const o=G.players.a;
+  const candidates=o.mzones.map((m,i)=>({m,i})).filter(x=>x.m);
+  if(candidates.length===0) return null;
+  const killable=candidates.filter(x=>x.m.hp<=atkM.atk).sort((a,b)=>b.m.cv-a.m.cv);
+  if(killable.length>0) return killable[0].i;
+  // เลี่ยง Frost Guardian ถ้าฆ่าไม่ได้ในทีเดียว (จะโดนแช่แข็งตอบโต้) เว้นแต่ไม่มีตัวเลือกอื่น
+  const safe=candidates.filter(x=>x.m.name!=='Frost Guardian');
+  const pool=safe.length>0 ? safe : candidates;
+  pool.sort((a,b)=>a.m.hp-b.m.hp);
+  return pool[0].i;
+}
+function aiDoAttacks(){
+  if(G.over || !G.aiMode || G.turn!=='b'){ return; }
+  const queue=G.players.b.mzones.map((m,i)=>({m,i})).filter(x=>x.m && !x.m.exhausted && x.m.frozen===0).map(x=>x.i);
+  aiAttackStep(queue,0);
+}
+function aiAttackStep(queue, idx){
+  if(G.over || !G.aiMode || G.turn!=='b' || idx>=queue.length){ setTimeout(aiEndTurn, 500); return; }
+  const zi=queue[idx]; const m=G.players.b.mzones[zi];
+  if(m && !m.exhausted && m.frozen===0){
+    const target=aiPickTarget(m);
+    if(target!==null) doAction('attack',['b',zi,target]);
+  }
+  setTimeout(()=>aiAttackStep(queue, idx+1), 750);
+}
+function aiEndTurn(){
+  if(G.over || !G.aiMode || G.turn!=='b') return;
+  doAction('endturn',['b']);
+}
+
+
 /* ---------------- local UI intents ---------------- */
 function onHandCard(k, card){
   if(!canControl(k)) return; cancelAttackSelect();
@@ -959,7 +1058,8 @@ function renderSideInto(dataKey, domKey){
   nt.textContent=p.name; nt.style.color = dataKey==='a' ? '#7ce0ff':'#ffb27c';
 
   const st=side.querySelector('[data-status]');
-  st.textContent = canControl(dataKey) ? 'ตาของเธอ' : (G.turn===dataKey && !G.over ? 'กำลังเล่น...' : 'รอเทิร์น');
+  st.textContent = canControl(dataKey) ? 'ตาของเธอ' :
+    (G.turn===dataKey && !G.over ? (G.aiMode && dataKey==='b' ? 'AI กำลังคิด...' : 'กำลังเล่น...') : 'รอเทิร์น');
   st.classList.toggle('ready', canControl(dataKey));
 
   side.querySelector('[data-crystal]').textContent=p.crystal;
@@ -977,7 +1077,7 @@ function renderSideInto(dataKey, domKey){
 
   // hand
   const handEl=side.querySelector('[data-hand]'); handEl.innerHTML='';
-  const showFace = !G.online || dataKey===G.myKey;
+  const showFace = isLocalHuman(dataKey);
   handEl.classList.toggle('locked', !canControl(dataKey));
   if(showFace){
     p.hand.forEach(card=>{
@@ -1073,7 +1173,7 @@ function showTable(){
 }
 function backToMenu(){
   if(typeof destroyPeer==='function') destroyPeer(); else { if(peer){try{peer.destroy();}catch(e){}} peer=null; conn=null; }
-  G.online=false; G.myKey=null;
+  G.online=false; G.myKey=null; G.aiMode=false;
   document.getElementById('table').classList.remove('on');
   document.getElementById('victory').classList.remove('show');
   document.getElementById('netstatus').classList.remove('show');
@@ -1088,8 +1188,10 @@ function backToMenu(){
 function netStatus(txt,cls){ const n=document.getElementById('netstatus');
   n.textContent=txt; n.className='show'; if(cls)n.classList.add(cls); }
 
-document.getElementById('pickOffline').onclick=()=>{ ensureAudio(); G.online=false; G.myKey=null; showTable(); newGame(); };
+document.getElementById('pickOffline').onclick=()=>{ ensureAudio(); G.online=false; G.myKey=null; G.aiMode=false; showTable(); newGame(); };
+document.getElementById('pickAI').onclick=()=>{ ensureAudio(); G.online=false; G.myKey=null; G.aiMode=true; showTable(); newGame(); };
 document.getElementById('pickOnline').onclick=()=>{
+  G.aiMode=false;
   if(typeof Peer==='undefined'){ scMode.classList.add('hidden'); scOnline.classList.remove('hidden');
     document.getElementById('onlineChoices').classList.add('hidden');
     document.getElementById('onlineNote').innerHTML='<span class="err">โหลดไลบรารีออนไลน์ไม่สำเร็จ — ต้องเปิดผ่าน URL จริง (server) ไม่ใช่พรีวิว</span>';
